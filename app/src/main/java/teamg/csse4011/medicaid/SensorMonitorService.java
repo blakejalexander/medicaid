@@ -2,6 +2,7 @@ package teamg.csse4011.medicaid;
 
 import android.app.IntentService;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 
@@ -101,6 +102,7 @@ public class SensorMonitorService extends Service implements SensorEventListener
         Notification notification = new Notification.Builder(getApplicationContext())
             .setContentTitle(getApplicationContext().getString(R.string.app_name))
             .setContentText("Accidental Fall Monitor - Currently Running")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentIntent(pendingIntent)
             .setOngoing(true).build();
 
