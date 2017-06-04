@@ -2,7 +2,6 @@ package teamg.csse4011.medicaid;
 
 import android.app.IntentService;
 import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 
@@ -12,8 +11,8 @@ import android.content.Context;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 
-import android.os.Environment;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 
 import android.hardware.Sensor;
@@ -21,7 +20,6 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 
-import android.support.annotation.Nullable;
 
 import android.util.Log;
 
@@ -34,39 +32,28 @@ import java.io.PrintWriter;
 public class SensorMonitorService extends Service implements SensorEventListener {
     /* TODO: Blake - look into IntentService instead? Is it OK if it runs on the main thread? */
 
+    private final String TAG = SensorMonitorService.class.getSimpleName();
+
     private SensorManager sensorManager;
     private Sensor accelerometer;
 
-    private final String TAG = SensorMonitorService.class.getSimpleName();
+    private Handler sensorHandler;
+    private HandlerThread sensorHandlerThread;
 
+
+    /* DEBUG: Remove these ASAP when done. */
     final String baseDir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
     final String dirname = "blake-csse4011";
     final String filepath = baseDir + File.separator + dirname;
-
     private File testdata;
 
+    /* TODO: Blake - actually use this.*/
     private int samplingPeriodUs = (1 / 500) * 10^(-6); /* 500Hz. */
-
-
-//    public SensorMonitorService() {
-//        super(SensorMonitorService.class.getSimpleName());
-//    }
 
     @Override
     public void onCreate() {
+        
         super.onCreate();
-    }
-
-    /**
-     * Called when the process is started via a call to Context.startService. This function creates
-     * the internal SensorManager and registers listeners for the accelerometer.
-     * @param intent
-     * @return
-     */
-    @Override
-//    protected void onHandleIntent(Intent intent) {
-    public int onStartCommand(Intent intent, int flags, int startID) {
-        /* TODO: Blake - need to handle Intents properly. */
 
         this.sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
@@ -77,9 +64,28 @@ public class SensorMonitorService extends Service implements SensorEventListener
          * could be picked.*/
         this.accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
+
+        /* Create the Handler and its thread that is responsible for sensor event callbacks.
+         * We do this so that we keep these operations off the UI/main thread. */
+        this.sensorHandlerThread = new HandlerThread("SensorThread", Thread.MAX_PRIORITY);
+        this.sensorHandlerThread.start();
+        this.sensorHandler = new Handler(this.sensorHandlerThread.getLooper());
+
+
         /* TODO: Blake - we should check the return value for success. */
         this.sensorManager.registerListener(this, this.accelerometer,
-                SensorManager.SENSOR_DELAY_UI, new Handler());
+                SensorManager.SENSOR_DELAY_UI, this.sensorHandler);
+    }
+
+    /**
+     * Called when the process is started via a call to Context.startService. This function creates
+     * the internal SensorManager and registers listeners for the accelerometer.
+     * @param intent
+     * @return
+     */
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startID) {
+        /* TODO: Blake - need to handle Intents properly. */
 
         /* DEBUG STUFF HERE, REMOVE BEFORE COMMIT */
         Log.d(this.TAG, "onHandleIntent called");
@@ -88,7 +94,7 @@ public class SensorMonitorService extends Service implements SensorEventListener
         this.testdata = new File(path, "test_data.csv");
 
 
-        /* Next, we transform this Service into a foreground service. That is, a service which is
+        /* We need to transform this Service into a foreground service. That is, a service which is
          * always running, even if the main activity is killed. */
 
         /* But first, we need to construct the notification that (must) be displayed by the
