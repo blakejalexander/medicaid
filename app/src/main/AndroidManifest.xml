@@ -22,6 +22,7 @@
             android:name=".GuardianUserActivity"
             android:screenOrientation="portrait" />
         <activity android:name=".MonitoredUser"></activity>
+        <service android:name="SensorMonitorService"></service>
     </application>
 
 </manifest>

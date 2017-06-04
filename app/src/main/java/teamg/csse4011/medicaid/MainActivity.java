@@ -3,6 +3,7 @@ package teamg.csse4011.medicaid;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -13,8 +14,10 @@ public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_MESSAGE = "teamg.csse4011.medicaid.MESSAGE";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
     }
 
     /** Called when the user taps the Send button */
@@ -23,6 +26,13 @@ public class MainActivity extends AppCompatActivity {
         TextView editText = (TextView) findViewById(R.id.editText);
         intent.putExtra(EXTRA_MESSAGE, "test");
 
+        startActivity(intent);
+    }
+
+    /* */
+    public void monitoredModeButtonCallback(View view) {
+
+        Intent intent = new Intent(this, MonitoredUser.class);
         startActivity(intent);
     }
 }
