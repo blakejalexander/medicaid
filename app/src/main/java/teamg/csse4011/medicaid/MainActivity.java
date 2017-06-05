@@ -18,14 +18,19 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Start service
+//        Intent intent = new Intent(this, AccelerometerService.class);
+//        //Start Service
+//        startService(intent);
+//
+        Intent intentGPS = new Intent(this, GPSService.class);
+        //Start Service
+        startService(intentGPS);
+
     }
 
-    /** Called when the user taps the Send button */
-    public void sendMessage(View view) {
+    public void guardianModeButtonCallback(View view) {
         Intent intent = new Intent(this, GuardianUserActivity.class);
-        TextView editText = (TextView) findViewById(R.id.editText);
-        intent.putExtra(EXTRA_MESSAGE, "test");
-
         startActivity(intent);
     }
 
