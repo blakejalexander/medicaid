@@ -18,11 +18,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Start service
-        Intent intent = new Intent(this, AccelerometerService.class);
-        //Start Service
-        startService(intent);
-
         Intent intentGPS = new Intent(this, GPSService.class);
         //Start Service
         startService(intentGPS);
