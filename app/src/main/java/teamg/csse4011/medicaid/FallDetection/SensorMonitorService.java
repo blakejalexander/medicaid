@@ -1,4 +1,4 @@
-package teamg.csse4011.medicaid;
+package teamg.csse4011.medicaid.FallDetection;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -30,6 +30,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import teamg.csse4011.medicaid.MainActivity;
+import teamg.csse4011.medicaid.R;
 
 
 public class SensorMonitorService extends Service implements SensorEventListener {
