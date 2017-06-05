@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +48,7 @@ class FallLikeEventDetector {
     private int state;
 
     /* TODO: Blake - write comment explaining what I'm for. */
-    private LinkedHashMap<Long, Double> fallLikeEventWindow;
+    private FallLikeEventDataWindow fallLikeEventWindow;
 
 
     /* TOOD: FIXME: Blake - note that the "timers" in this FSM assume (heavily) that data is
@@ -66,9 +67,35 @@ class FallLikeEventDetector {
         postFallTimeStart = 0;
 
         /* Initialise internal data window. */
-        fallLikeEventWindow = new LinkedHashMap<>();
+        fallLikeEventWindow = new FallLikeEventDataWindow();
 
     }
+
+    private class FallLikeEventDataWindow extends LinkedHashMap<Long, Double> {
+
+        void removeOlderThanBy(long timestampReference, long maxAge) {
+
+            Iterator<Long> iterator = this.keySet().iterator();
+
+            while (iterator.hasNext()) {
+
+                long key = iterator.next();
+
+                if (timestampReference - key > maxAge) {
+                    this.remove(key);
+                } else {
+
+                    /* We exploit the fact that LinkedHashMap.keySet is ordered by
+                     * insertion to save the cost of iterating through the whole
+                     * thing to find state values. The first time we don't find one, we're done.
+                     */
+                    break;
+                }
+            }
+        }
+    }
+
+
 
     public void run(long timestamp, double G) {
 
@@ -88,20 +115,8 @@ class FallLikeEventDetector {
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
 
-                    /* Remove any entires older than timestamp - WINDOW_ENTRY_MAX_AGE_MS */
-                    for (long key : fallLikeEventWindow.keySet()) {
-
-                        if (timestamp - key > WINDOW_ENTRY_MAX_AGE_MS) {
-                            fallLikeEventWindow.remove(key);
-                        } else {
-
-                            /* We exploit the fact that LinkedHashMap.keySet is ordered by
-                             * insertion to save the cost of iterating through the whole
-                             * thing to find state values.
-                             * NOTE: Careful. This is breaking out of the _for_ loop. */
-                            break;
-                        }
-                    }
+                    /* Remove any entires older than WINDOW_ENTRY_MAX_AGE_MS from timestamp. */
+                    fallLikeEventWindow.removeOlderThanBy(timestamp, WINDOW_ENTRY_MAX_AGE_MS);
 
 
                 } else {
@@ -112,17 +127,14 @@ class FallLikeEventDetector {
                 break;
 
             case STATE_POST_PEAK_EVENT:
-                Log.d(TAG, "STATE_POST_PEAK_EVENT");
 
+                Log.d(TAG, "STATE_POST_PEAK_EVENT");
 
                 fallLikeEventWindow.put(timestamp, G);
 
                 /* Check if timer expired. If so, the fall has finished, go to the post fall
-                 * state. */
+                 * state on the next clock. */
                 if (timestamp - postPeakTimeStart > POST_PEAK_TIMEOUT_MS) {
-
-                    /* Set the timer for the next state, and transition to it on the next
-                     * FSM clock. */
                     postFallTimeStart = timestamp;
                     state = STATE_POST_FALL_EVENT;
                     break;
@@ -132,23 +144,8 @@ class FallLikeEventDetector {
                  * state as we entered from STATE_WAITING_FOR_PEAK as in the first time. */
                 if (G >= THRESHOLD_PEAK) {
 
-                    /* Start a fresh fall-like event data window. */
-
-                    /* Remove any entires older than timestamp - WINDOW_ENTRY_MAX_AGE_MS */
-                    for (long key : fallLikeEventWindow.keySet()) {
-
-                        if (timestamp - key > WINDOW_ENTRY_MAX_AGE_MS) {
-                            fallLikeEventWindow.remove(key);
-                        } else {
-
-                            /* We exploit the fact that LinkedHashMap.keySet is ordered by
-                             * insertion to save the cost of iterating through the whole
-                             * thing to find state values. */
-                            break;
-                        }
-                    }
-
-                    fallLikeEventWindow.put(timestamp, G);
+                    /* Trim current window progress. */
+                    fallLikeEventWindow.removeOlderThanBy(timestamp, WINDOW_ENTRY_MAX_AGE_MS);
 
                     /* Reset the timer, set the next state to be this one. */
                     postPeakTimeStart = timestamp;
@@ -163,10 +160,8 @@ class FallLikeEventDetector {
                 break;
 
             case STATE_POST_FALL_EVENT:
+
                 Log.d(TAG, "STATE_POST_FALL_EVENT");
-
-
-                fallLikeEventWindow.put(timestamp, G);
 
                 /* If our timer has expired. It's time to state transition out. */
                 if (timestamp - postFallTimeStart > POST_FALL_TIMEOUT_MS) {
@@ -177,22 +172,8 @@ class FallLikeEventDetector {
                 /* Go back to the post-peak detection event state. Restart the timer. */
                 if (G >= THRESHOLD_PEAK) {
 
-                    /* Start a fresh fall-like event data window. */
-
-                    /* Remove any entires older than timestamp - WINDOW_ENTRY_MAX_AGE_MS */
-                    for (long key : fallLikeEventWindow.keySet()) {
-
-                        if (timestamp - key > WINDOW_ENTRY_MAX_AGE_MS) {
-                            fallLikeEventWindow.remove(key);
-                        } else {
-
-                            /* We exploit the fact that LinkedHashMap.keySet is ordered by
-                             * insertion to save the cost of iterating through the whole
-                             * thing to find state values. */
-                            break;
-                        }
-                    }
-
+                    /* Trim current window progress. */
+                    fallLikeEventWindow.removeOlderThanBy(timestamp, WINDOW_ENTRY_MAX_AGE_MS);
                     fallLikeEventWindow.put(timestamp, G);
 
                     postPeakTimeStart = timestamp;
