@@ -179,8 +179,11 @@ public class SensorMonitorService extends Service implements SensorEventListener
         private final double THRESHOLD_PEAK = 3.0 * SensorManager.GRAVITY_EARTH;
 
         /* Timeout values of particular states. */
-        private final long POST_PEAK_TIMEOUT_MS = 500;
-        private final long POST_FALL_TIMEOUT_MS = 1000;
+        private final long POST_PEAK_TIMEOUT_MS = 1000;
+        private final long POST_FALL_TIMEOUT_MS = 2000;
+
+        /* The oldest data allowed in our data window _before_ our FSM is triggered. */
+        private final long WINDOW_ENTRY_MAX_AGE_MS = POST_PEAK_TIMEOUT_MS + POST_FALL_TIMEOUT_MS;
 
         /* State 'timers', really just a relative timestamp that is checked. */
         private long postPeakTimeStart;
@@ -229,14 +232,27 @@ public class SensorMonitorService extends Service implements SensorEventListener
                         postPeakTimeStart = timestamp;
                         state = STATE_POST_PEAK_EVENT;
 
-                        /* Start a fresh fall-like event data window. */
-                        fallLikeEventWindow.clear();
-                        fallLikeEventWindow.put(timestamp, G);
+                        /* Remove any entires older than timestamp - WINDOW_ENTRY_MAX_AGE_MS */
+                        for (long key : fallLikeEventWindow.keySet()) {
+
+                            if (timestamp - key > WINDOW_ENTRY_MAX_AGE_MS) {
+                                fallLikeEventWindow.remove(key);
+                            } else {
+
+                                /* We exploit the fact that LinkedHashMap.keySet is ordered by
+                                 * insertion to save the cost of iterating through the whole
+                                 * thing to find state values.
+                                 * NOTE: Careful. This is breaking out of the _for_ loop. */
+                                break;
+                            }
+                        }
+
 
                     } else {
                         state = STATE_WAITING_FOR_PEAK;
                     }
 
+                    fallLikeEventWindow.put(timestamp, G);
                     break;
 
                 case STATE_POST_PEAK_EVENT:
@@ -261,7 +277,21 @@ public class SensorMonitorService extends Service implements SensorEventListener
                     if (G >= THRESHOLD_PEAK) {
 
                         /* Start a fresh fall-like event data window. */
-                        fallLikeEventWindow.clear();
+
+                        /* Remove any entires older than timestamp - WINDOW_ENTRY_MAX_AGE_MS */
+                        for (long key : fallLikeEventWindow.keySet()) {
+
+                            if (timestamp - key > WINDOW_ENTRY_MAX_AGE_MS) {
+                                fallLikeEventWindow.remove(key);
+                            } else {
+
+                                /* We exploit the fact that LinkedHashMap.keySet is ordered by
+                                 * insertion to save the cost of iterating through the whole
+                                 * thing to find state values. */
+                                break;
+                            }
+                        }
+
                         fallLikeEventWindow.put(timestamp, G);
 
                         /* Reset the timer, set the next state to be this one. */
@@ -292,7 +322,21 @@ public class SensorMonitorService extends Service implements SensorEventListener
                     if (G >= THRESHOLD_PEAK) {
 
                         /* Start a fresh fall-like event data window. */
-                        fallLikeEventWindow.clear();
+
+                        /* Remove any entires older than timestamp - WINDOW_ENTRY_MAX_AGE_MS */
+                        for (long key : fallLikeEventWindow.keySet()) {
+
+                            if (timestamp - key > WINDOW_ENTRY_MAX_AGE_MS) {
+                                fallLikeEventWindow.remove(key);
+                            } else {
+
+                                /* We exploit the fact that LinkedHashMap.keySet is ordered by
+                                 * insertion to save the cost of iterating through the whole
+                                 * thing to find state values. */
+                                break;
+                            }
+                        }
+
                         fallLikeEventWindow.put(timestamp, G);
 
                         postPeakTimeStart = timestamp;
@@ -356,7 +400,7 @@ public class SensorMonitorService extends Service implements SensorEventListener
 
                         break;
                     }
-                    
+
                     break;
             }
         }
@@ -427,17 +471,8 @@ public class SensorMonitorService extends Service implements SensorEventListener
                 FileOutputStream out = new FileOutputStream(testdata, true);
                 PrintWriter pw = new PrintWriter(out, true);
 
-            /* TODO: Blake - Samples are currently timestamped when they're written to
-             * flash. This is an expensive operation, especially the way it is
-             * currently implemented. Whilst this is only debug code we still need
-             * to be careful since it forms the basis of our model analysis.
-             *
-             * We need to timestamp the samples relative to when they were actually
-             * measured. The SensorEvent object has a timestampe but its relative to
-             * uptime. We could convert to a (rough) unix epoch time when its received
-             * and not timestampe it between file writes. We should also buffer our
-             * file writes, rather than open a stream and close it for literally every
-             * measurement */
+                /* TODO: Blake - We should also buffer our file writes, rather than open a stream and
+                 * close it for literally every measurement */
                 pw.println(Long.toString(timestamp) + "," + Float.toString(x) +
                         "," + Float.toString(y) + "," + Float.toString(z));
 
