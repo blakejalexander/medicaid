@@ -3,6 +3,8 @@ package teamg.csse4011.medicaid.FallDetection;
 import android.content.Context;
 import android.hardware.SensorManager;
 import android.media.MediaScannerConnection;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Vibrator;
 import android.util.Log;
@@ -73,6 +75,8 @@ class FallLikeEventDetector {
 
     private class FallLikeEventDataWindow extends LinkedHashMap<Long, Double> {
 
+        /* TODO: I have a feeling that I can't verify that this method takes too long. Falls seem
+         * to have a ~30-100ms sampling void at the first peak and the next reading? */
         void removeOlderThanBy(long timestampReference, long maxAge) {
 
             Iterator<Long> iterator = this.keySet().iterator();
@@ -118,7 +122,6 @@ class FallLikeEventDetector {
                     /* Remove any entires older than WINDOW_ENTRY_MAX_AGE_MS from timestamp. */
                     fallLikeEventWindow.removeOlderThanBy(timestamp, WINDOW_ENTRY_MAX_AGE_MS);
 
-
                 } else {
                     state = STATE_WAITING_FOR_PEAK;
                 }
@@ -162,6 +165,7 @@ class FallLikeEventDetector {
             case STATE_POST_FALL_EVENT:
 
                 Log.d(TAG, "STATE_POST_FALL_EVENT");
+                fallLikeEventWindow.put(timestamp, G);
 
                 /* If our timer has expired. It's time to state transition out. */
                 if (timestamp - postFallTimeStart > POST_FALL_TIMEOUT_MS) {
@@ -174,7 +178,6 @@ class FallLikeEventDetector {
 
                     /* Trim current window progress. */
                     fallLikeEventWindow.removeOlderThanBy(timestamp, WINDOW_ENTRY_MAX_AGE_MS);
-                    fallLikeEventWindow.put(timestamp, G);
 
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
@@ -206,6 +209,16 @@ class FallLikeEventDetector {
                     Vibrator v = (Vibrator) fallDetectionService.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
                     v.vibrate(1000);
 
+                    try {
+                        Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                        Ringtone r = RingtoneManager.getRingtone(
+                                this.fallDetectionService.getApplicationContext(),
+                                notification);
+                        r.play();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
                     /* DEBUG Code: save window to flash for later analysis. */
                     try {
                         FileOutputStream out = new FileOutputStream(wind, true);
@@ -234,6 +247,9 @@ class FallLikeEventDetector {
                             });
 
 
+
+                    /* Clear the entire window now that we're done with it. */
+                    this.fallLikeEventWindow.clear();
 
                     break;
                 }
