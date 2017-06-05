@@ -9,6 +9,8 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 
+import java.util.Random;
+
 public class GPSService extends Service {
     private static final String TAG = "GPS";
     private LocationManager mLocationManager = null;
@@ -27,10 +29,12 @@ public class GPSService extends Service {
             mLastLocation = new Location(provider);
         }
 
+
         @Override
         public void onLocationChanged(Location location)
         {
             Log.e(TAG, "onLocationChanged: " + location);
+
             mLastLocation.set(location);
             if (MapFragment.ThisInstance != null) {
                 MapFragment.ThisInstance.updatePatientLocation(location);

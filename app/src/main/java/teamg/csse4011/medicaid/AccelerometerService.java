@@ -11,6 +11,8 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 
+import java.util.Random;
+
 public class AccelerometerService extends Service implements SensorEventListener {
 
     private SensorManager mSensorManager;
@@ -27,15 +29,18 @@ public class AccelerometerService extends Service implements SensorEventListener
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        mAccelerometer = mSensorManager
-                .getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        mSensorManager.registerListener(this, mAccelerometer,
-                SensorManager.SENSOR_DELAY_UI, new Handler());
+        mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST, new Handler());
         return START_NOT_STICKY;
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
+
+
+    private int getRandomNumber(int min,int max) {
+        return (new Random()).nextInt((max - min) + 1) + min;
     }
 
     @Override
@@ -49,6 +54,10 @@ public class AccelerometerService extends Service implements SensorEventListener
         mAccel = mAccel * 0.9f + delta; // perform low-cut filter
 
         Log.d("accel", String.format("%f, %f, %f", x, y, z));
+
+        GuardianUserActivity.updateBleMarkerPosition((double)getRandomNumber(0, 3), (double)getRandomNumber(0, 3));
     }
+
+
 
 }

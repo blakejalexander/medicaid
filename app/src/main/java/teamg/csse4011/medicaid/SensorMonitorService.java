@@ -53,8 +53,9 @@ public class SensorMonitorService extends Service implements SensorEventListener
 
     @Override
     public void onCreate() {
-
         super.onCreate();
+
+        Log.d("sensor", "onCreate called");
 
         this.sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
@@ -69,7 +70,7 @@ public class SensorMonitorService extends Service implements SensorEventListener
         /* Create the Handler and its thread that is responsible for sensor event callbacks.
          * We do this so that we keep these operations off the UI/main thread.
          * WARNING: Must call sensorHandlerThread.quitSafely when unregistering sensors. */
-        this.sensorHandlerThread = new HandlerThread("SensorThread", Thread.MAX_PRIORITY);
+        this.sensorHandlerThread = new HandlerThread("SensorThread", Thread.NORM_PRIORITY);
         this.sensorHandlerThread.start();
         this.sensorHandler = new Handler(this.sensorHandlerThread.getLooper());
 
@@ -80,8 +81,7 @@ public class SensorMonitorService extends Service implements SensorEventListener
         this.dataProcessingThread.start();
 
         /* TODO: Blake - we should check the return value for success. */
-        this.sensorManager.registerListener(this, this.accelerometer,
-                SensorManager.SENSOR_DELAY_FASTEST, this.sensorHandler);
+        this.sensorManager.registerListener(this, this.accelerometer, SensorManager.SENSOR_DELAY_FASTEST, this.sensorHandler);
     }
 
     /**
@@ -140,13 +140,13 @@ public class SensorMonitorService extends Service implements SensorEventListener
         if (event.sensor.equals(this.accelerometer)) {
             /* TODO: Blake - Extract values for the sensor here. */
 
-            Log.d(TAG, "sending data to queue");
+            Log.d("onSensorChanged", "sending data to queue");
             if (this.dataProcessor.offer(event) == false) {
                 Log.w(TAG, "Queue is full!");
             }
 
         } else {
-            Log.w(TAG, "Sensor value changed for a sensor which has not bene handled yet!");
+            Log.w(TAG, "Sensor value changed for a sensor which has not been handled yet!");
         }
 
     }
@@ -171,6 +171,7 @@ public class SensorMonitorService extends Service implements SensorEventListener
             return this.sensorEventQueue.offer(event);
         }
 
+        @Override
         public void run() {
 
             while (true) {
@@ -185,47 +186,51 @@ public class SensorMonitorService extends Service implements SensorEventListener
                     Thread.currentThread().interrupt();
                     throw new RuntimeException(e);
                 }
-
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 /* Process the event. */
                 if (event.sensor.equals(accelerometer)) {
 
                     float x = event.values[0];
                     float y = event.values[1];
                     float z = event.values[2];
+//
+//                    try {
+//                        FileOutputStream out = new FileOutputStream(testdata, true);
+//                        PrintWriter pw = new PrintWriter(out, true);
+//
+//                        /* TODO: Blake - Samples are currently timestamped when they're written to
+//                         * flash. This is an expensive operation, especially the way it is
+//                         * currently implemented. Whilst this is only debug code we still need
+//                         * to be careful since it forms the basis of our model analysis.
+//                         *
+//                         * We need to timestamp the samples relative to when they were actually
+//                         * measured. The SensorEvent object has a timestampe but its relative to
+//                         * uptime. We could convert to a (rough) unix epoch time when its received
+//                         * and not timestampe it between file writes. We should also buffer our
+//                         * file writes, rather than open a stream and close it for literally every
+//                         * measurement*/
+//                        pw.println(Long.toString(System.currentTimeMillis()) + "," + Float.toString(x)
+//                                +","+Float.toString(y)+","+ Float.toString(z));
+//
+//                        pw.close();
+//                        out.close();
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
 
-                    try {
-                        FileOutputStream out = new FileOutputStream(testdata, true);
-                        PrintWriter pw = new PrintWriter(out, true);
-
-                        /* TODO: Blake - Samples are currently timestamped when they're written to
-                         * flash. This is an expensive operation, especially the way it is
-                         * currently implemented. Whilst this is only debug code we still need
-                         * to be careful since it forms the basis of our model analysis.
-                         *
-                         * We need to timestamp the samples relative to when they were actually
-                         * measured. The SensorEvent object has a timestampe but its relative to
-                         * uptime. We could convert to a (rough) unix epoch time when its received
-                         * and not timestampe it between file writes. We should also buffer our
-                         * file writes, rather than open a stream and close it for literally every
-                         * measurement*/
-                        pw.println(Long.toString(System.currentTimeMillis()) + "," + Float.toString(x)
-                                +","+Float.toString(y)+","+ Float.toString(z));
-
-                        pw.close();
-                        out.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-
-                    /* Inform Android that the file exists, so it can be viewed using USB. */
-                    MediaScannerConnection.scanFile(SensorMonitorService.this, new String[] {
-                                    testdata.toString
-                                    () },
-                            null,
-                            new MediaScannerConnection.OnScanCompletedListener() {
-                                public void onScanCompleted(String path, Uri uri) {
-                                }
-                            });
+//                    /* Inform Android that the file exists, so it can be viewed using USB. */
+//                    MediaScannerConnection.scanFile(SensorMonitorService.this, new String[] {
+//                                    testdata.toString
+//                                    () },
+//                            null,
+//                            new MediaScannerConnection.OnScanCompletedListener() {
+//                                public void onScanCompleted(String path, Uri uri) {
+//                                }
+//                            });
                 }
 
             }

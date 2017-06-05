@@ -19,25 +19,27 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Start service
-//        Intent intent = new Intent(this, AccelerometerService.class);
-//        //Start Service
-//        startService(intent);
-//
+        Intent intent = new Intent(this, AccelerometerService.class);
+        //Start Service
+        startService(intent);
+
         Intent intentGPS = new Intent(this, GPSService.class);
         //Start Service
         startService(intentGPS);
-
     }
+
 
     public void guardianModeButtonCallback(View view) {
         Intent intent = new Intent(this, GuardianUserActivity.class);
-        startActivity(intent);
+        intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivityIfNeeded(intent, 0);
     }
 
     /* */
     public void monitoredModeButtonCallback(View view) {
-
+        Log.d("mainActivity", "button callback");
         Intent intent = new Intent(this, MonitoredUser.class);
-        startActivity(intent);
+        intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivityIfNeeded(intent, 0);
     }
 }

@@ -23,6 +23,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.IOException;
+import java.security.Guard;
 
 /**
  * Created by Andrew on 4/06/2017.
@@ -51,6 +52,11 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
 
     private Marker posMarker = null;
 
+
+    public void toggleGoogleMap(Boolean flag) {
+
+    }
+    static int counter = 0;
     /* Update the camera view and marker position on the map for given patient location. */
      public void updatePatientLocation(Location location) {
          // New location has now been determined
@@ -64,7 +70,6 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
          if (posMarker != null) {
              posMarker.setPosition(latLng);
          }
-
 
         /* Update camera position */
         CameraUpdate center = CameraUpdateFactory.newLatLng(latLng);

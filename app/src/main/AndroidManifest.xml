@@ -26,15 +26,18 @@
         </activity>
         <activity
             android:name=".GuardianUserActivity"
+            android:launchMode="singleInstance"
             android:screenOrientation="portrait" />
         <activity
             android:name=".MonitoredUser"
+            android:launchMode="singleInstance"
             android:screenOrientation="portrait" />
         <service android:name="SensorMonitorService"></service>
 
         <service
             android:name=".AccelerometerService"
             android:enabled="true"
+            android:launchMode="singleInstance"
             android:exported="true" />
         <service
             android:name=".GPSService"
