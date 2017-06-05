@@ -111,7 +111,7 @@ public class GuardianUserActivity extends AppCompatActivity {
 
         /* Toggle relative visibility of map showing relative position */
         if (jsonUsingGPSFlag != this.usingGPSFlag) {
-            th  is.usingGPSFlag = jsonUsingGPSFlag;
+            this.usingGPSFlag = jsonUsingGPSFlag;
             this.toggleGoogleMapVisibility(this.usingGPSFlag);
             this.toggleBleMapVisibility(!this.usingGPSFlag);
         }
