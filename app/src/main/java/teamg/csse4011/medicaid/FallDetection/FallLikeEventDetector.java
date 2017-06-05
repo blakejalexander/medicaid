@@ -82,7 +82,7 @@ class FallLikeEventDetector {
                 long key = iterator.next();
 
                 if (timestampReference - key > maxAge) {
-                    this.remove(key);
+                    iterator.remove();
                 } else {
 
                     /* We exploit the fact that LinkedHashMap.keySet is ordered by
