@@ -1,6 +1,7 @@
 package teamg.csse4011.medicaid;
 
 import android.content.Intent;
+import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
@@ -204,7 +205,7 @@ public class GuardianUserActivity extends AppCompatActivity {
     public void interpretJson(String msg) {
         String status = "";
         boolean jsonUsingGPSFlag = false;
-        float jsonGpsLatitude, jsonGpsLongitude;
+        double jsonGpsLatitude = 0., jsonGpsLongitude = 0.;
 
         JSONObject jObject = null;
         Log.d("4011json", "parsing " + msg);
@@ -217,12 +218,17 @@ public class GuardianUserActivity extends AppCompatActivity {
 
         try {
             status = jObject.getString("status");
-            jsonUsingGPSFlag = jObject.getBoolean("usingGpsFlag");
+            jsonUsingGPSFlag = jObject.getBoolean("usingGps");
+            jsonGpsLatitude = jObject.getDouble("latitude");
+            jsonGpsLongitude = jObject.getDouble("longitude");
 
         } catch (JSONException e) {
             e.printStackTrace();
         } finally {
-            Log.d("4011json", status);
+            Log.d("4011json", "Status: " + status);
+            Log.d("4011json", "FLAG: " + jsonUsingGPSFlag);
+            Log.d("4011json", "Latitude: " + jsonGpsLatitude);
+            Log.d("4011json", "Longitude: " + jsonGpsLongitude);
         }
 
         if (MapFragment.ThisInstance != null) {
@@ -233,10 +239,19 @@ public class GuardianUserActivity extends AppCompatActivity {
 
 
         /* Toggle relative visibility of map showing relative position */
-        if (jsonUsingGPSFlag != this.usingGPSFlag) {
+//        if (jsonUsingGPSFlag != this.usingGPSFlag) {
             this.usingGPSFlag = jsonUsingGPSFlag;
             this.toggleGoogleMapVisibility(this.usingGPSFlag);
             this.toggleBleMapVisibility(!this.usingGPSFlag);
+//        }
+
+        if (this.usingGPSFlag) {
+            Location targetLocation = new Location("");//provider name is unnecessary
+            targetLocation.setLatitude(jsonGpsLatitude);//your coords of course
+            targetLocation.setLongitude(jsonGpsLongitude);
+            MapFragment.ThisInstance.updatePatientLocation(targetLocation);
+        } else { /* Update with new BLE position */
+//            this.updateBleMarkerPosition(jsonBleX, jsonBleY);
         }
     }
 
@@ -276,7 +291,15 @@ public class GuardianUserActivity extends AppCompatActivity {
                     response += byteArrayOutputStream.toString("UTF-8");
                 }
 //                Log.d("4011guardian", "Received: [" + byteArrayOutputStream.toString() + "]");
-                interpretJson(byteArrayOutputStream.toString());
+
+
+                GuardianUserActivity.this.runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        interpretJson(response);
+                    }
+                });
 
             } catch (UnknownHostException e) {
                 // TODO Auto-generated catch block

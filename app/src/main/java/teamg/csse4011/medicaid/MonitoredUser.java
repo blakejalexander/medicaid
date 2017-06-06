@@ -92,11 +92,10 @@ public class MonitoredUser extends AppCompatActivity {
         json += ",";
 
         /* Location - GPS */
-        json += "\"location_gps\": {";
         json += "\"latitude\":";
         json += String.format("%f,", patientGPSLocation.getLatitude());
         json += "\"longitude\":";
-        json += String.format("%f},", patientGPSLocation.getLongitude());
+        json += String.format("%f,", patientGPSLocation.getLongitude());
 
         /* Location - nearest node */
         json += "\"nearestBleNode\":";
