@@ -7,7 +7,6 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Vibrator;
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -19,10 +18,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+
+
+
+
 /** Fall-Like Event detection finite state machine.
  *  TODO: Blake - Need to write doc explaining how it works (or how its intended to work) still.
  */
 class FallLikeEventDetector {
+
+    /* A helpful alias. */
+    private final double GRAVITY_EARTH = SensorManager.GRAVITY_EARTH;
 
     private FallDetectionService fallDetectionService;
     private final String TAG = this.getClass().getSimpleName();
@@ -34,7 +40,7 @@ class FallLikeEventDetector {
     private final int STATE_WAIT_RECOVERY_EVENT = 3;
 
     /* Acceleration magnitude detection threshold. */
-    private final double THRESHOLD_PEAK = 3.0 * SensorManager.GRAVITY_EARTH;
+    private final double THRESHOLD_PEAK = 3.0 * GRAVITY_EARTH;
 
     /* Timeout values of particular states. */
     private final long POST_PEAK_TIMEOUT_MS = 1000;
@@ -43,9 +49,11 @@ class FallLikeEventDetector {
     /* The oldest data allowed in our (raw) data window _before_ our FSM is triggered. */
     private final long WINDOW_ENTRY_MAX_AGE_MS = POST_PEAK_TIMEOUT_MS + POST_FALL_TIMEOUT_MS;
 
-    /* */
+    /* This constant is used to define the boundary to search for the pre-impact phase. */
     private final long PRE_IMPACT_JUST_BEFORE_MS = 500;
 
+    /* The time to look back from the end of an impact to find the start of it. */
+    private final long IMPACT_END_LOOKBACK_MS = POST_FALL_TIMEOUT_MS + PRE_IMPACT_JUST_BEFORE_MS;
 
     /* State 'timers', really just a relative timestamp that is checked. */
     private long postPeakTimeStart;
@@ -58,6 +66,7 @@ class FallLikeEventDetector {
     private FallLikeEventDataWindow fallLikeEventWindow;
 
     /* Impact start and end timestamps. */
+    private long triggerPeakTime;
     private long impactStart;
     private long impactEnd;
 
@@ -65,6 +74,7 @@ class FallLikeEventDetector {
     public final int INDEX_IMPACT_DURATION = 0;
     public final int INDEX_PREFALL_MINIMUM_DIP = 1;
     public final int INDEX_IMPACT_VIOLENCE = 2;
+    public final int INDEX_IMPACT_AVERAGE_VALUE = 3;
 
 
     /* TOOD: FIXME: Blake - note that the "timers" in this FSM assume (heavily) that data is
@@ -88,14 +98,135 @@ class FallLikeEventDetector {
     }
 
     /**
+     * Storage class, containing features extracted from a fall-like event data window.
+     */
+    public class FallLikeEventFeatures {
+
+        public double impactDuration;
+        //public double prefallDuration; /* TODO: Get working. */
+        //public double prefallMinimum;
+        public double impactViolence;
+        public double impactAverage;
+        public double postImpactAverage;
+
+        /**
+         * Initialises the storage class by setting the public feature values. Once initialised,
+         * the features should be accessed directly via the public double primitives. See
+         * extractFeatures for specifics as to the implementation of feature extraction.
+         * @param window The data window to extract features from.
+         */
+        public FallLikeEventFeatures(FallLikeEventDataWindow window) {
+            extractFeatures(window);
+        }
+
+        /**
+         * Feature extraction. Takes a data window and sets the private values of this class
+         * (which correspond to features). Note that every feature will be populated. This function
+         * assumed that the window is well formed. This assumption is met via
+         * the FallLikeEventDetector state machine, which ensures the provided window is suitable
+         * for feature extraction.
+         *
+         * The following features are extracted:
+         *  impact duration     - defined as the time difference between the last value above half
+         *                        the PEAK_THRESHOLD value and the first value at or above half the
+         *                        PEAK_THRESHOLD value after a dip of 70% GRAVITY_EARTH. If the
+         *                        later value cannot be found, the impact duration will be the time
+         *                        from the trigger peak until the aforementioned end value.
+         *
+         *  prefall duration    - defined as the time difference between the dip before the
+         *                        impact start time (above) and the last value above 90%
+         *                        GRAVITY_EARTH
+         *                        TODO: FINISH ME
+         *
+         *
+         *  prefall minimum     - the minimum value within the aforementioned prefall duration
+         *
+         *  impact violence     - defined as the number of values not within 20% of GRAVITY_EARTH
+         *                        divided by the total amount of values.
+         *
+         *  impact average      - average of all values within the impact phase
+         *
+         *  post impact average - average of all values after the impact phase, ie. everything after
+         *                        the impact duration.
+         *
+         *
+         * @param window The data window to extract features from.
+         */
+        private void extractFeatures(FallLikeEventDataWindow window) {
+
+            /* Attempt to extract the "real" impact time by analyzing the subwindow in the region
+             * [ impactEnd - justBeforeIt , triggerPeakTime ]. The real impact time is determined by
+             * finding the 'first' dip below 70% of GRAVITY_EARTH and then the next measurement of
+             * at least half the trigger peak threshold, this measurement is the impact start,
+             * immediately after free fall. If the impact start event cant be found, it is 'blindly'
+             * set to the triggerPeakTime value.
+             */
+            FallLikeEventDataWindow subset = window.clone();
+            subset.removeOlderThan(impactEnd - IMPACT_END_LOOKBACK_MS);
+            subset.removeNewerThan(triggerPeakTime);
+
+            Map.Entry<Long, Double> dip = window.getFirstEntryLt(0.7 * GRAVITY_EARTH);
+            if (dip == null) {
+
+                impactStart = triggerPeakTime;
+            } else {
+
+                subset.removeOlderThan(dip.getKey());
+                Map.Entry<Long, Double> start = window.getFirstEntryGt(THRESHOLD_PEAK / 2.0);
+                if (start == null) {
+                    impactStart = triggerPeakTime;
+                } else {
+                    impactStart = start.getKey();
+                }
+            }
+            this.impactDuration = impactEnd - impactStart;
+
+
+
+            /* Compute the 'impact violence' value. The impact violence is number of values
+             * that are NOT within a +- range of 20% the value of GRAVITY_EARTH. This is
+             * determined using the "impact" subwindow.
+             * Originally I thought of determining how many significant transitions across
+             * GRAVITY_EARTH occur (ie. bias crossing). This is a "kind of like that but not really"
+             * alternative approach.
+             */
+            FallLikeEventDataWindow impactWindow = window.clone();
+            impactWindow.removeOlderThan(impactStart - PRE_IMPACT_JUST_BEFORE_MS);
+            impactWindow.removeNewerThan(impactEnd);
+            impactWindow.removeOlderThanBy(impactStart, 0);
+            double num = impactWindow.size() - impactWindow.getNumEntriesInRange(
+                    0.8 * GRAVITY_EARTH,
+                    1.2 * GRAVITY_EARTH);
+            this.impactViolence = num / (double)impactWindow.size();
+
+
+
+            /* Extract the average of all events in the impact event region (before post-fall). */
+            double impactSum = 0;
+            for (double value : impactWindow.values()) {
+                impactSum = impactSum + value;
+            }
+            this.impactAverage = impactSum / impactWindow.size();
+
+
+
+            /* Extract the average of all activity after the impact event. */
+            FallLikeEventDataWindow postImpactWindow = window.clone();
+            postImpactWindow.removeOlderThan(impactEnd);
+
+            double postImpactSum = 0;
+            for (double value : postImpactWindow.values()) {
+                postImpactSum = postImpactSum + value;
+            }
+            this.postImpactAverage = postImpactSum / postImpactWindow.size();
+
+        }
+    }
+
+    /**
      * Fall-like event data window.
      */
     public class FallLikeEventDataWindow extends LinkedHashMap<Long, Double> implements Cloneable {
-
-        public final int FEATURE_COUNT = 3;
-
-        public double[] features = { 0, 0, 0};
-//        public ArrayList<Double> features;
 
         public FallLikeEventDataWindow() {
             super();
@@ -122,6 +253,15 @@ class FallLikeEventDetector {
                     break;
                 }
             }
+        }
+
+        /**
+         * Equivalent to removeOlderThanBy with maxAge = 0. Removes anything older than the
+         * reference value.
+         * @param timestampReference reference value
+         */
+        void removeOlderThan(long timestampReference) {
+            removeOlderThanBy(timestampReference, 0);
         }
 
         /* Remove any entries which are newer (numerically larger) than a certain timestamp. */
@@ -216,9 +356,80 @@ class FallLikeEventDetector {
 
             return count;
         }
+
+        /**
+         * Returns the first Entry object with a value above a certain threshold.
+         * @param threshold
+         * @return the first entry found with Map.Entry.getValue() > threshold or null if none
+         */
+        public Entry<Long, Double> getFirstEntryGt(double threshold) {
+
+            Iterator<Entry<Long, Double>> iterator = this.entrySet().iterator();
+            while (iterator.hasNext()) {
+
+                Map.Entry<Long, Double> entry = iterator.next();
+
+                if (entry.getValue() > threshold) {
+                    return entry;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Returns the last Entry object which satisifes the condition .getValue() > threshold
+         * @param threshold threshold value
+         * @return the last entry greater than the threshold
+         */
+        public Entry<Long, Double> getLastEntryGt(double threshold) {
+
+            Entry<Long, Double> last = null;
+
+            Iterator<Entry<Long, Double>> iterator = this.entrySet().iterator();
+            while (iterator.hasNext()) {
+
+                Map.Entry<Long, Double> entry = iterator.next();
+
+                if (entry.getValue() > threshold) {
+                    last = entry;
+                }
+            }
+
+            return last;
+        }
+
+        public Entry<Long, Double> getFirstEntryLt(double threshold) {
+
+            Iterator<Entry<Long, Double>> iterator = this.entrySet().iterator();
+            while (iterator.hasNext()) {
+
+                Entry<Long, Double> needle = iterator.next();
+                if (needle.getValue() < threshold) {
+                    return needle;
+                }
+            }
+            return null;
+        }
+
+        public Entry<Long, Double> getLastEntryLt(double threshold) {
+            /* TODO: Blake - potential optimisation, iterate in reverse. No default API for it. */
+
+            Entry<Long, Double> last = null;
+
+            Iterator<Entry<Long, Double>> iterator = this.entrySet().iterator();
+            while (iterator.hasNext()) {
+
+                Entry<Long, Double> needle = iterator.next();
+                if (needle.getValue() < threshold) {
+                    last = needle;
+                }
+            }
+            return last;
+        }
+
+
     }
-
-
 
     public void run(long timestamp, double G) {
 
@@ -237,8 +448,8 @@ class FallLikeEventDetector {
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
 
-                    /* Set the impact start timestamp for later use. */
-                    impactStart = timestamp;
+                    /* Set the timestamp of the trigger peak for later use. */
+                    triggerPeakTime = timestamp;
 
                     /* Remove any entires older than WINDOW_ENTRY_MAX_AGE_MS from timestamp. */
                     fallLikeEventWindow.removeOlderThanBy(timestamp, WINDOW_ENTRY_MAX_AGE_MS);
@@ -274,8 +485,8 @@ class FallLikeEventDetector {
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
 
-                    /* Set the impact start timestamp for later use. */
-                    impactStart = timestamp;
+                    /* Set the timestamp of the trigger peak for later use. */
+                    triggerPeakTime = timestamp;
 
                     break;
 
@@ -290,6 +501,12 @@ class FallLikeEventDetector {
                 /* Otherwise, we're still in the post-peak state, we can only exit this state
                  * if the timer expires. */
                 state = STATE_POST_PEAK_EVENT;
+
+                /* Handle the case where we don't see any acceleration spikes after the trigger. */
+                if (impactEnd == 0) {
+                    impactEnd = timestamp; /* Impact end time will become peaktime + timeout */
+                }
+
                 break;
 
             case STATE_POST_FALL_EVENT:
@@ -311,8 +528,8 @@ class FallLikeEventDetector {
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
 
-                    /* Set the impact start timestamp for later use. */
-                    impactStart = timestamp;
+                    /* Set the timestamp of the trigger peak for later use. */
+                    triggerPeakTime = timestamp;
 
                     break;
                 }
@@ -321,37 +538,12 @@ class FallLikeEventDetector {
 
             case STATE_WAIT_RECOVERY_EVENT:
 
-                /* Compute the impact duration, that is, the time from the detection peak till
-                 * they settle. */
-                fallLikeEventWindow.features[INDEX_IMPACT_DURATION] = impactEnd - impactStart;
-
-                /* Compute the pre-fall phase dip magnitude, that is, the magnitude of the lowest
-                 * acceleration value within the subwindow just before the impactStart timestamp and
-                 * the impactEnd timestamp. */
-                FallLikeEventDataWindow subset = fallLikeEventWindow.clone();
-                subset.removeOlderThanBy(impactStart - PRE_IMPACT_JUST_BEFORE_MS, 0);
-                subset.removeNewerThan(impactEnd);
-                Map.Entry<Long, Double> minPreFall = subset.getMinValue();
-
-                fallLikeEventWindow.features[INDEX_PREFALL_MINIMUM_DIP] = minPreFall.getValue();
-
-                /* Compute the 'impact violence' value. The impact violence is number of values
-                 * that are NOT within a +- range of 20% the value of GRAVITY_EARTH.
-                 * Originally I thought of determining how many significant transitions across
-                 * GRAVITY_EARTH occur (ie. bias crossing). This is a "kind of like that but not
-                 * really" approach
-                 */
-                subset.removeOlderThanBy(impactStart, 0); /* Clobber the previous set, save time. */
-                double num = subset.size() - subset.getNumEntriesInRange(
-                        0.8 * SensorManager.GRAVITY_EARTH,
-                        1.2 * SensorManager.GRAVITY_EARTH);
-                fallLikeEventWindow.features[INDEX_IMPACT_VIOLENCE] = num / (double)subset.size();
+                /* TODO: FIXME: URGENT: extract features */
 
 
 
                 /* Process window data. Do some sort of calculation???? */
                 if (true) {
-                    state = STATE_WAITING_FOR_PEAK;
 
                     /* DEBUG: Dump window to a file. Each window is in its own unique file.
                      * We set the arbritrary limit of 10000 windows to be stored at any time.
@@ -406,11 +598,11 @@ class FallLikeEventDetector {
                                 }
                             });
 
-
-
-                    /* Clear the entire window now that we're done with it. */
                     this.fallLikeEventWindow.clear();
-
+                    impactStart = 0;
+                    impactEnd = 0;
+                    triggerPeakTime = 0;
+                    state = STATE_WAITING_FOR_PEAK;
                     break;
                 }
 
