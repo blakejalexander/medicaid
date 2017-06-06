@@ -34,7 +34,7 @@ class FallLikeEventDetector {
     private final int STATE_WAITING_FOR_PEAK = 0;
     private final int STATE_POST_PEAK_EVENT = 1;
     private final int STATE_POST_FALL_EVENT = 2;
-    private final int STATE_WAIT_RECOVERY_EVENT = 3;
+    private final int STATE_EVENT_FINISHED = 3;
 
     /* Acceleration magnitude detection threshold. */
     private final double THRESHOLD_PEAK = 3.0 * GRAVITY_EARTH;
@@ -512,7 +512,7 @@ class FallLikeEventDetector {
 
                 /* If our timer has expired. It's time to state transition out. */
                 if (timestamp - postFallTimeStart > POST_FALL_TIMEOUT_MS) {
-                    state = STATE_WAIT_RECOVERY_EVENT;
+                    state = STATE_EVENT_FINISHED;
                     break;
                 }
 
@@ -535,7 +535,7 @@ class FallLikeEventDetector {
 
                 break;
 
-            case STATE_WAIT_RECOVERY_EVENT:
+            case STATE_EVENT_FINISHED:
 
                 /* Reduce the dimensionality of the data by extracting notable features from it. */
                 FallLikeEventFeatures features = new FallLikeEventFeatures(fallLikeEventWindow);
