@@ -97,7 +97,8 @@
         android:layout_marginTop="16dp"
         tools:layout_constraintLeft_creator="1"
         app:layout_constraintLeft_toLeftOf="@+id/statusTextView"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginLeft="23dp" />
 
 
     <TextView
@@ -140,9 +141,9 @@
     <FrameLayout
         android:id="@+id/mapLayout"
         android:layout_width="0dp"
-        android:layout_height="305dp"
-        android:layout_marginEnd="34dp"
-        android:layout_marginStart="34dp"
+        android:layout_height="225dp"
+        android:layout_marginEnd="53dp"
+        android:layout_marginStart="53dp"
         tools:layout_constraintRight_creator="1"
         tools:layout_constraintBottom_creator="1"
         app:layout_constraintBottom_toTopOf="@+id/bleLayout"
@@ -204,6 +205,113 @@
         tools:layout_constraintTop_creator="1"
         android:id="@+id/graph" />
     </FrameLayout>
+
+    <EditText
+        android:id="@+id/portEditText"
+        android:layout_width="88dp"
+        android:layout_height="40dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="8080"
+        tools:layout_constraintLeft_creator="1"
+        tools:layout_constraintRight_creator="1"
+        tools:layout_constraintTop_creator="1"
+        tools:layout_constraintBottom_creator="1"
+        app:layout_constraintBottom_toTopOf="@+id/mapLayout"
+        android:layout_marginStart="57dp"
+        android:layout_marginEnd="52dp"
+        app:layout_constraintRight_toRightOf="@+id/ipAddrEditText"
+        android:layout_marginTop="108dp"
+        app:layout_constraintTop_toBottomOf="@+id/textView"
+        android:layout_marginBottom="107dp"
+        app:layout_constraintLeft_toLeftOf="@+id/ipAddrTextView" />
+
+    <EditText
+        android:id="@+id/ipAddrEditText"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="192.168.1.106"
+        tools:layout_constraintLeft_creator="1"
+        tools:layout_constraintRight_creator="1"
+        tools:layout_constraintTop_creator="1"
+        tools:layout_constraintBottom_creator="1"
+        app:layout_constraintBottom_toTopOf="@+id/portEditText"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="22dp"
+        app:layout_constraintRight_toRightOf="@+id/mapLayout"
+        android:layout_marginTop="9dp"
+        app:layout_constraintTop_toBottomOf="@+id/textView"
+        android:layout_marginBottom="11dp"
+        app:layout_constraintLeft_toRightOf="@+id/ipAddrTextView" />
+
+    <TextView
+        android:id="@+id/ipAddrTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PORT:"
+        android:textStyle="bold"
+        app:layout_constraintBaseline_toBaselineOf="@+id/portEditText"
+        tools:layout_constraintBaseline_creator="1"
+        tools:layout_constraintLeft_creator="1"
+        app:layout_constraintLeft_toLeftOf="@+id/textView15" />
+
+    <TextView
+        android:id="@+id/textView15"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="IP ADDR:"
+        android:textStyle="bold"
+        tools:layout_constraintRight_creator="1"
+        android:layout_marginEnd="27dp"
+        app:layout_constraintRight_toRightOf="@+id/textView"
+        app:layout_constraintBaseline_toBaselineOf="@+id/ipAddrEditText"
+        tools:layout_constraintBaseline_creator="1" />
+
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="5dp"
+        android:onClick="updateConnection"
+        android:text="Update"
+        app:layout_constraintLeft_toLeftOf="@+id/portEditText"
+        app:layout_constraintTop_toBottomOf="@+id/portEditText"
+        tools:layout_constraintLeft_creator="1"
+        tools:layout_constraintTop_creator="1" />
+
+    <TextView
+        android:id="@+id/textView10"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Connected?"
+        tools:layout_constraintBaseline_creator="1"
+        tools:layout_constraintLeft_creator="1"
+        app:layout_constraintRight_toLeftOf="@+id/mapLayout"
+        tools:layout_constraintRight_creator="1"
+        app:layout_constraintBaseline_toBaselineOf="@+id/textViewConnectFlag"
+        app:layout_constraintLeft_toLeftOf="@+id/mapLayout"
+        app:layout_constraintHorizontal_bias="0.692" />
+
+    <TextView
+        android:id="@+id/textViewConnectFlag"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginBottom="3dp"
+        android:layout_marginEnd="22dp"
+        android:layout_marginStart="6dp"
+        android:text="No"
+        android:textSize="9sp"
+        app:layout_constraintBottom_toTopOf="@+id/mapLayout"
+        app:layout_constraintLeft_toRightOf="@+id/textView10"
+        app:layout_constraintRight_toRightOf="@+id/mapLayout"
+        app:layout_constraintTop_toBottomOf="@+id/button3"
+        tools:layout_constraintBottom_creator="1"
+        tools:layout_constraintLeft_creator="1"
+        tools:layout_constraintRight_creator="1"
+        tools:layout_constraintTop_creator="1" />
 
 </android.support.constraint.ConstraintLayout>
 

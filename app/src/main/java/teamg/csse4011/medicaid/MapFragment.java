@@ -58,18 +58,18 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
     }
     static int counter = 0;
     /* Update the camera view and marker position on the map for given patient location. */
-     public void updatePatientLocation(Location location) {
-         // New location has now been determined
-         String msg = "Updated Location: " +
-                 Double.toString(location.getLatitude()) + "," +
-                 Double.toString(location.getLongitude());
-         Log.d("UpdateMap", msg);
+    public void updatePatientLocation(Location location) {
+        // New location has now been determined
+        String msg = "Updated Location: " +
+                Double.toString(location.getLatitude()) + ", " +
+                Double.toString(location.getLongitude());
+        Log.d("UpdateMap", msg);
 
         // You can now create a LatLng Object for use with maps
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-         if (posMarker != null) {
-             posMarker.setPosition(latLng);
-         }
+        if (posMarker != null) {
+            posMarker.setPosition(latLng);
+        }
 
         /* Update camera position */
         CameraUpdate center = CameraUpdateFactory.newLatLng(latLng);
@@ -83,11 +83,6 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
     }
 
     public void onLocationChanged(Location location) {
-        // New location has now been determined
-        String msg = "Updated Location: " +
-                Double.toString(location.getLatitude()) + "," +
-                Double.toString(location.getLongitude());
-        Log.d("4011MapFragment", msg);
 
     }
 
