@@ -7,8 +7,10 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Vibrator;
+import android.util.Log;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -22,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 /** Fall-Like Event detection finite state machine.
  *  TODO: Blake - Need to write doc explaining how it works (or how its intended to work) still.
  */
-class FallLikeEventDetector {
+public class FallLikeEventDetector {
 
     /* A helpful alias. */
     private final double GRAVITY_EARTH = SensorManager.GRAVITY_EARTH;
@@ -81,7 +83,7 @@ class FallLikeEventDetector {
      * still coming in before the timer expires. If this doesn't happen for some reason then
      * here be dragons also known as bugs. */
 
-    FallLikeEventDetector(FallDetectionService fallDetectionService) {
+    public FallLikeEventDetector(FallDetectionService fallDetectionService) {
 
         this.fallDetectionService = fallDetectionService;
 
@@ -91,6 +93,12 @@ class FallLikeEventDetector {
         /* Reset timer values. */
         postPeakTimeStart = 0;
         postFallTimeStart = 0;
+
+        /* Reset values. */
+        impactStart = 0;
+        impactEnd = 0;
+        triggerPeakTime = 0;
+        lastReadingTimestamp = 0;
 
         /* Initialise internal data window. */
         fallLikeEventWindow = new FallLikeEventDataWindow();
@@ -427,7 +435,35 @@ class FallLikeEventDetector {
 
     }
 
-    public void run(long timestamp, double G) {
+    private void fsmReset() {
+
+        /* Set the initial FSM state. */
+        state = STATE_WAITING_FOR_PEAK;
+
+        /* Reset timer values. */
+        postPeakTimeStart = 0;
+        postFallTimeStart = 0;
+
+        /* Reset values. */
+        impactStart = 0;
+        impactEnd = 0;
+        triggerPeakTime = 0;
+        lastReadingTimestamp = 0;
+
+        /* Initialise internal data window. */
+        fallLikeEventWindow = new FallLikeEventDataWindow();
+    }
+
+    /**
+     * Implementation of finite state machine clock. State transitions occur when a timestamp, G
+     * pair are provided, ie. a sample. This function will return null if a fall like event has
+     * not been completely identified or will return a feature set that identiifes that event. The
+     * raw event window can be obtained - it is an instance variable of this class.
+     * @param timestamp timestamp of sample, in nanoseconds.
+     * @param G acceleration magnitude, in m/s^2
+     * @return null or extracted features
+     */
+    private FallLikeEventFeatures doClock(long timestamp, double G) {
 
         /* Quantise the timestamp into milliseconds to allow easier processing. */
         timestamp = TimeUnit.MILLISECONDS.convert(timestamp, TimeUnit.NANOSECONDS);
@@ -502,7 +538,7 @@ class FallLikeEventDetector {
                  * for up to 200ms after a impulse (such as hitting the phone). Haven't figured
                  * out why but my current guess is that its something beyond our application layer
                  * control, since Android's sampling rate is 'best effort'. */
-                if (lastReadingTimestamp == triggerPeakTime ) {
+                if (lastReadingTimestamp == triggerPeakTime) {
                     impactEnd = timestamp;
                 }
 
@@ -539,76 +575,138 @@ class FallLikeEventDetector {
 
                 /* Reduce the dimensionality of the data by extracting notable features from it. */
                 FallLikeEventFeatures features = new FallLikeEventFeatures(fallLikeEventWindow);
-
-
-                /* Process window data. Do some sort of calculation???? */
-                if (true) {
-
-                    /* DEBUG: Dump window to a file. Each window is in its own unique file.
-                     * We set the arbritrary limit of 10000 windows to be stored at any time.
-                     * if theres 10000, the 10000th window will be appended to. */
-                    String fmt = "window%03d.csv";
-                    File wind = null;
-                    for (int i = 0; i < 10000; i++) {
-                        wind = new File(new File(fallDetectionService.filepath), String.format(fmt, i));
-                        if (!wind.exists()) {
-                            break;
-                        }
-                    }
-
-                    /* DEBUG Code: Fall occured, let developer know via feedback. */
-                    Vibrator v = (Vibrator) fallDetectionService.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-                    v.vibrate(1000);
-
-                    try {
-                        Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-                        Ringtone r = RingtoneManager.getRingtone(
-                                this.fallDetectionService.getApplicationContext(),
-                                notification);
-                        r.play();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    /* DEBUG Code: save window to flash for later analysis. */
-                    try {
-                        FileOutputStream out = new FileOutputStream(wind, true);
-                        PrintWriter pw = new PrintWriter(out, true);
-
-                        for (Map.Entry<Long, Double> entry : fallLikeEventWindow.entrySet()) {
-                            pw.println(entry.getKey() + "," + entry.getValue());
-                        }
-
-                        pw.close();
-                        out.close();
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-
-                    /* DEBUG Code: Inform Android that the file exists, so it can be viewed
-                     * using USB ASAP */
-                    MediaScannerConnection.scanFile(fallDetectionService, new String[] {
-                                    wind.toString
-                                            () },
-                            null,
-                            new MediaScannerConnection.OnScanCompletedListener() {
-                                public void onScanCompleted(String path, Uri uri) {
-                                }
-                            });
-
-                    this.fallLikeEventWindow.clear();
-                    impactStart = 0;
-                    impactEnd = 0;
-                    triggerPeakTime = 0;
-                    state = STATE_WAITING_FOR_PEAK;
-                    break;
-                }
-
-                break;
+                fsmReset();
+                return features;
         }
 
         /* Store the last time we processed a sample in the FSM. */
         lastReadingTimestamp = timestamp;
+        return null;
     }
+
+    /**
+     * Clocks the finitie state machine. See doClock for details.
+     * @param timestamp
+     * @param G
+     * @return null or extracted features
+     */
+    public FallLikeEventFeatures run(long timestamp, double G) {
+
+        FallLikeEventFeatures rv = this.doClock(timestamp, G);
+
+        if (rv != null) {
+            this.debugDumpEventData(this.fallLikeEventWindow, rv);
+        }
+
+        return rv;
+    }
+
+    /**
+     * Functionally identical to run, however, intended to be used to replay data (as read from a
+     * csv file) rather than used 'live'.
+     * @param timestamp
+     * @param
+     * @return null or a extracted feature object.
+     */
+    public FallLikeEventFeatures replay(long timestamp, double G) {
+
+        /* NOTE: No need to call debugDumpEventData here, if we're replaying it. Responsibility
+        *        of caller to write feature values to a .csv if desired. */
+
+        timestamp = TimeUnit.NANOSECONDS.convert(timestamp, TimeUnit.MILLISECONDS);
+        return this.doClock(timestamp, G);
+    }
+
+    /**
+     * Dumps window and feature data to flash. Only valid to call when a complete window and
+     * corresponding feature set has been obtained. See run or replay.
+     * @param window a complete window
+     * @param features feature representation of that window
+     */
+    public void debugDumpEventData(FallLikeEventDataWindow window,
+                                    FallLikeEventFeatures features) {
+
+        String windowFileFormat = "window%03d.csv";
+        String featureFileFormat = "feature%03d.csv";
+
+        File windF = null;
+        File featF = null;
+
+        /* Loop until we find a windowXXX.csv and featureXXX.csv pair of filenames that are free. */
+        for (int i = 0; i < 999; i++) {
+            windF = new File(new File(fallDetectionService.filepath),
+                    String.format(windowFileFormat, i));
+            featF = new File(new File(fallDetectionService.filepath), String.format
+                    (featureFileFormat, i));
+
+            if (!windF.exists() && !featF.exists()) {
+                break;
+            }
+        }
+        /* WARNING: If at this point we are using window999.csv and feature999.csv, they may be
+         *          appended to, rather than created. */
+
+
+        /* Let the developer know an event was captured via haptic feedback. */
+        Vibrator v = (Vibrator)fallDetectionService.getApplicationContext().
+                getSystemService(Context.VIBRATOR_SERVICE);
+        v.vibrate(1000);
+
+        /* Also let the developer know an event was captured via audio feedback. */
+        try {
+            Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            Ringtone r = RingtoneManager.getRingtone(
+                    this.fallDetectionService.getApplicationContext(),
+                    notification);
+            r.play();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+        /* Write the window data to flash. */
+        try {
+            FileOutputStream out = new FileOutputStream(windF, true);
+            PrintWriter pw = new PrintWriter(out, true);
+
+            for (Map.Entry<Long, Double> entry : window.entrySet()) {
+                pw.println(entry.getKey() + "," + entry.getValue());
+            }
+        } catch (FileNotFoundException e) {
+            /* We already assured this can't happen. */
+            e.printStackTrace();
+        }
+
+        /* Write the feature data for the window to flash. */
+        try {
+            FileOutputStream out = new FileOutputStream(windF, true);
+            PrintWriter pw = new PrintWriter(out, true);
+
+            for (Map.Entry<Long, Double> entry : window.entrySet()) {
+                pw.println(features.impactDuration + "," + features.impactViolence +
+                        "," + features.impactAverage +
+                        features.postImpactAverage);
+            }
+
+        } catch (FileNotFoundException e) {
+            /* We already assured this can't happen. */
+            e.printStackTrace();
+        }
+
+        /* Inform Android that the files exist, so it can be viewed using USB immediately */
+        MediaScannerConnection.scanFile(fallDetectionService, new String[] {
+                windF.toString() }, null,
+                new MediaScannerConnection.OnScanCompletedListener() {
+                    public void onScanCompleted(String path, Uri uri) { /* nothing */ }
+        });
+
+        /* Inform Android that the files exist, so it can be viewed using USB immediately */
+        MediaScannerConnection.scanFile(fallDetectionService, new String[] {
+                featF.toString() }, null,
+                new MediaScannerConnection.OnScanCompletedListener() {
+                    public void onScanCompleted(String path, Uri uri) { /* nothing */ }
+                });
+
+    }
+
 }
