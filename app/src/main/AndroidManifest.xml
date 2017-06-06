@@ -34,7 +34,7 @@
             android:name=".MonitoredUser"
             android:launchMode="singleInstance"
             android:screenOrientation="portrait" />
-        <service android:name="SensorMonitorService"></service>
+        <service android:name=".FallDetection.FallDetectionService"></service>
 
         <service
             android:name=".GPSService"
