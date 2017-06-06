@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,8 +40,12 @@ class FallLikeEventDetector {
     private final long POST_PEAK_TIMEOUT_MS = 1000;
     private final long POST_FALL_TIMEOUT_MS = 2000;
 
-    /* The oldest data allowed in our data window _before_ our FSM is triggered. */
+    /* The oldest data allowed in our (raw) data window _before_ our FSM is triggered. */
     private final long WINDOW_ENTRY_MAX_AGE_MS = POST_PEAK_TIMEOUT_MS + POST_FALL_TIMEOUT_MS;
+
+    /* */
+    private final long PRE_IMPACT_JUST_BEFORE_MS = 500;
+
 
     /* State 'timers', really just a relative timestamp that is checked. */
     private long postPeakTimeStart;
@@ -51,6 +56,15 @@ class FallLikeEventDetector {
 
     /* TODO: Blake - write comment explaining what I'm for. */
     private FallLikeEventDataWindow fallLikeEventWindow;
+
+    /* Impact start and end timestamps. */
+    private long impactStart;
+    private long impactEnd;
+
+    /* Feature indexes. TODO: Blake - explain me. */
+    public final int INDEX_IMPACT_DURATION = 0;
+    public final int INDEX_PREFALL_MINIMUM_DIP = 1;
+    public final int INDEX_IMPACT_VIOLENCE = 2;
 
 
     /* TOOD: FIXME: Blake - note that the "timers" in this FSM assume (heavily) that data is
@@ -73,7 +87,19 @@ class FallLikeEventDetector {
 
     }
 
-    private class FallLikeEventDataWindow extends LinkedHashMap<Long, Double> {
+    /**
+     * Fall-like event data window.
+     */
+    public class FallLikeEventDataWindow extends LinkedHashMap<Long, Double> implements Cloneable {
+
+        public final int FEATURE_COUNT = 3;
+
+        public double[] features = { 0, 0, 0};
+//        public ArrayList<Double> features;
+
+        public FallLikeEventDataWindow() {
+            super();
+        }
 
         /* TODO: I have a feeling that I can't verify that this method takes too long. Falls seem
          * to have a ~30-100ms sampling void at the first peak and the next reading? */
@@ -97,6 +123,99 @@ class FallLikeEventDetector {
                 }
             }
         }
+
+        /* Remove any entries which are newer (numerically larger) than a certain timestamp. */
+        void removeNewerThan(long timestampReference) {
+
+            Iterator<Long> iterator = this.keySet().iterator();
+
+            while (iterator.hasNext()) {
+
+                long key = iterator.next();
+
+                if (key > timestampReference) {
+                    iterator.remove();
+                } else {
+
+                    /* We exploit the fact that LinkedHashMap.keySet is ordered by
+                     * insertion to save the cost of iterating through the whole
+                     * thing to find state values. The first time we don't find one, we're done.
+                     */
+                    break;
+                }
+            }
+        }
+
+        /**
+         * shallow clone implementation, returned data is in insertion order of this instance.
+         * @return the shallow cloned data
+         */
+        public FallLikeEventDataWindow clone() {
+            /* We implement this by manually going through this and putting the data in a new
+             * instance. This isn't the ideal solution but we don't really care.
+             * TODO: Care.
+             */
+
+            FallLikeEventDataWindow retval = new FallLikeEventDataWindow();
+
+            Iterator<Entry<Long, Double>> iterator = this.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry entry = iterator.next();
+                retval.put((Long)entry.getKey(), (Double)entry.getValue());
+            }
+
+            return retval;
+        }
+
+        /**
+         * Returns a key, value pair (Map.Entry class) with the smallest value
+         * @return the entry corresponding to the minimum
+         */
+        public Map.Entry<Long, Double> getMinValue() {
+
+            Map.Entry<Long, Double> min = null;
+
+            Iterator<Entry<Long, Double>> iterator = this.entrySet().iterator();
+            while (iterator.hasNext()) {
+
+                Map.Entry<Long, Double> entry = iterator.next();
+                if (min == null || min.getValue() > entry.getValue() ) {
+                    min = entry;
+                }
+            }
+
+            return min;
+        }
+
+        /**
+         * Iterates through the entries and counts how many have a value within a given range.
+         * Set lower to -1 * Double.MIN_VALUE to have no lower bound. Set upper to Double.MAX_VALUE
+         * to have no upper bound. If both bounds are set to those values, this call is equivalent
+         * to size()
+         * @param lower lower bound
+         * @param upper upper bound
+         * @return
+         */
+        public int getNumEntriesInRange(double lower, double upper) {
+
+            if (lower == -1 * Double.MIN_VALUE && upper == Double.MAX_VALUE) {
+                return this.size();
+            }
+
+            int count = 0;
+
+            Iterator<Entry<Long, Double>> iterator = this.entrySet().iterator();
+            while (iterator.hasNext()) {
+
+                Map.Entry<Long, Double> entry = iterator.next();
+
+                if (entry.getValue() >= lower && entry.getValue() <= upper) {
+                    count++;
+                }
+            }
+
+            return count;
+        }
     }
 
 
@@ -111,13 +230,15 @@ class FallLikeEventDetector {
             /* In this state, we're waiting for an acceleration reading to exceed
              * THRESHOLD_PEAK. If it does not, we stay in this state until it does. */
             case STATE_WAITING_FOR_PEAK: /* FIXME: Aka sampling state*/
-                Log.d(TAG, "STATE_WAITING_FOR_PEAK");
 
                 if (G >= THRESHOLD_PEAK) {
 
                     /* Set the the next state's timer. */
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
+
+                    /* Set the impact start timestamp for later use. */
+                    impactStart = timestamp;
 
                     /* Remove any entires older than WINDOW_ENTRY_MAX_AGE_MS from timestamp. */
                     fallLikeEventWindow.removeOlderThanBy(timestamp, WINDOW_ENTRY_MAX_AGE_MS);
@@ -129,9 +250,8 @@ class FallLikeEventDetector {
                 fallLikeEventWindow.put(timestamp, G);
                 break;
 
+            /* This state represents the time we wait for the impact event to end. */
             case STATE_POST_PEAK_EVENT:
-
-                Log.d(TAG, "STATE_POST_PEAK_EVENT");
 
                 fallLikeEventWindow.put(timestamp, G);
 
@@ -154,7 +274,17 @@ class FallLikeEventDetector {
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
 
+                    /* Set the impact start timestamp for later use. */
+                    impactStart = timestamp;
+
                     break;
+
+                /* Otherwise, if the acceleration is below the threshold, but above half the
+                 * threshold we set the end of impact timestamp to the current value. This may
+                 * get continually updated as we add to the fall window. The final value is
+                 * correct, the intermediates, are not. */
+                } else if (G >= THRESHOLD_PEAK / 2.0) {
+                    impactEnd = timestamp;
                 }
 
                 /* Otherwise, we're still in the post-peak state, we can only exit this state
@@ -164,7 +294,6 @@ class FallLikeEventDetector {
 
             case STATE_POST_FALL_EVENT:
 
-                Log.d(TAG, "STATE_POST_FALL_EVENT");
                 fallLikeEventWindow.put(timestamp, G);
 
                 /* If our timer has expired. It's time to state transition out. */
@@ -181,13 +310,44 @@ class FallLikeEventDetector {
 
                     postPeakTimeStart = timestamp;
                     state = STATE_POST_PEAK_EVENT;
+
+                    /* Set the impact start timestamp for later use. */
+                    impactStart = timestamp;
+
                     break;
                 }
 
                 break;
 
             case STATE_WAIT_RECOVERY_EVENT:
-                Log.d(TAG, "STATE_WAIT_RECOVERY_EVENT");
+
+                /* Compute the impact duration, that is, the time from the detection peak till
+                 * they settle. */
+                fallLikeEventWindow.features[INDEX_IMPACT_DURATION] = impactEnd - impactStart;
+
+                /* Compute the pre-fall phase dip magnitude, that is, the magnitude of the lowest
+                 * acceleration value within the subwindow just before the impactStart timestamp and
+                 * the impactEnd timestamp. */
+                FallLikeEventDataWindow subset = fallLikeEventWindow.clone();
+                subset.removeOlderThanBy(impactStart - PRE_IMPACT_JUST_BEFORE_MS, 0);
+                subset.removeNewerThan(impactEnd);
+                Map.Entry<Long, Double> minPreFall = subset.getMinValue();
+
+                fallLikeEventWindow.features[INDEX_PREFALL_MINIMUM_DIP] = minPreFall.getValue();
+
+                /* Compute the 'impact violence' value. The impact violence is number of values
+                 * that are NOT within a +- range of 20% the value of GRAVITY_EARTH.
+                 * Originally I thought of determining how many significant transitions across
+                 * GRAVITY_EARTH occur (ie. bias crossing). This is a "kind of like that but not
+                 * really" approach
+                 */
+                subset.removeOlderThanBy(impactStart, 0); /* Clobber the previous set, save time. */
+                double num = subset.size() - subset.getNumEntriesInRange(
+                        0.8 * SensorManager.GRAVITY_EARTH,
+                        1.2 * SensorManager.GRAVITY_EARTH);
+                fallLikeEventWindow.features[INDEX_IMPACT_VIOLENCE] = num / (double)subset.size();
+
+
 
                 /* Process window data. Do some sort of calculation???? */
                 if (true) {
