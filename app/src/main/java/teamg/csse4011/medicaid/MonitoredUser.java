@@ -6,6 +6,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 
+import teamg.csse4011.medicaid.FallDetection.FallDetectionService;
+
 public class MonitoredUser extends AppCompatActivity {
 
     private final String TAG = "MonitoredUser";
@@ -22,7 +24,7 @@ public class MonitoredUser extends AppCompatActivity {
 
 //        if (servicedStarted == false) {
 //            servicedStarted = true;
-            Intent intent = new Intent(this, SensorMonitorService.class);
+            Intent intent = new Intent(this, FallDetectionService.class);
             startService(intent);
 //        }
 
