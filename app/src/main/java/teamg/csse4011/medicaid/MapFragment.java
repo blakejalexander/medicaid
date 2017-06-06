@@ -58,22 +58,22 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
     }
     static int counter = 0;
     /* Update the camera view and marker position on the map for given patient location. */
-     public void updatePatientLocation(Location location) {
-         // New location has now been determined
-         String msg = "Updated Location: " +
-                 Double.toString(location.getLatitude()) + "," +
-                 Double.toString(location.getLongitude());
-         Log.d("UpdateMap", msg);
+    public void updatePatientLocation(Location location) {
+        // New location has now been determined
+        String msg = "Updated Location: " +
+                Double.toString(location.getLatitude()) + ", " +
+                Double.toString(location.getLongitude());
+        Log.d("UpdateMap", msg);
 
         // You can now create a LatLng Object for use with maps
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-         if (posMarker != null) {
-             posMarker.setPosition(latLng);
-         }
+        if (posMarker != null) {
+            posMarker.setPosition(latLng);
+        }
 
         /* Update camera position */
         CameraUpdate center = CameraUpdateFactory.newLatLng(latLng);
-        CameraUpdate zoom = CameraUpdateFactory.zoomTo(19);
+        CameraUpdate zoom = CameraUpdateFactory.zoomTo(24);
 
         if (getMap() != null) {
             getMap().moveCamera(center);
@@ -83,11 +83,6 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
     }
 
     public void onLocationChanged(Location location) {
-        // New location has now been determined
-        String msg = "Updated Location: " +
-                Double.toString(location.getLatitude()) + "," +
-                Double.toString(location.getLongitude());
-        Log.d("4011MapFragment", msg);
 
     }
 
@@ -173,7 +168,7 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
 
         getMap().setMapType( MAP_TYPES[curMapTypeIndex] );
         getMap().setTrafficEnabled( false );
-        getMap().setMyLocationEnabled( true ); // Draws blue dot and circle at current position; we want only the position from the other device
+        getMap().setMyLocationEnabled( false ); // Draws blue dot and circle at current position; we want only the position from the other device
         getMap().getUiSettings().setZoomControlsEnabled( true );
 
         if (posMarker == null) {
@@ -193,7 +188,7 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
                 .setInterval(UPDATE_INTERVAL)
                 .setFastestInterval(FASTEST_INTERVAL);
         // Request location updates
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+//        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
     }
 
     @Override

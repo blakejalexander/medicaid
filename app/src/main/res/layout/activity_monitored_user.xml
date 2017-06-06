@@ -4,7 +4,27 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="teamg.csse4011.medicaid.MonitoredUser">
+    tools:context="teamg.csse4011.medicaid.MonitoredUser"
+    tools:layout_editor_absoluteY="89dp"
+    tools:layout_editor_absoluteX="0dp">
+
+    <TextView
+        android:id="@+id/ipAddrTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="192.168.1.12"
+        app:layout_constraintTop_toTopOf="@+id/ADDRESS:"
+        android:layout_marginStart="25dp"
+        tools:layout_constraintLeft_creator="1"
+        app:layout_constraintLeft_toRightOf="@+id/ADDRESS:" />
+
+    <TextView
+        android:id="@+id/portTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="8080"
+        app:layout_constraintLeft_toLeftOf="@+id/ipAddrTextView"
+        app:layout_constraintTop_toTopOf="@+id/textView5" />
 
     <TextView
         android:id="@+id/textView4"
@@ -13,14 +33,45 @@
         android:text="Monitored User"
         android:textSize="30sp"
         android:textStyle="bold"
-        tools:layout_editor_absoluteX="87dp"
-        tools:layout_editor_absoluteY="16dp" />
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintHorizontal_bias="0.501"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginTop="8dp"
+        tools:layout_constraintRight_creator="1"
+        tools:layout_constraintLeft_creator="1" />
+
+    <TextView
+        android:id="@+id/ADDRESS:"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="IP ADDRESS:"
+        app:layout_constraintLeft_toLeftOf="@+id/textView5"
+        tools:layout_constraintTop_creator="1"
+        android:layout_marginTop="83dp"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/textView5"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="STATUS:"
-        tools:layout_editor_absoluteX="16dp"
-        tools:layout_editor_absoluteY="59dp" />
+        android:text="PORT:"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/ADDRESS:"
+        android:layout_marginStart="16dp"
+        tools:layout_constraintLeft_creator="1"
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <TextView
+        android:id="@+id/textView14"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Connect from the guardian user app to this:"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/ipAddrTextView"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/textView4"
+        android:layout_marginStart="8dp" />
 </android.support.constraint.ConstraintLayout>

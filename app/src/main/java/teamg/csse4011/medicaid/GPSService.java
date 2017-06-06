@@ -12,7 +12,7 @@ import android.util.Log;
 import java.util.Random;
 
 public class GPSService extends Service {
-    private static final String TAG = "GPS";
+    private static final String TAG = "4011GPS";
     private LocationManager mLocationManager = null;
     private static final int LOCATION_INTERVAL = 1000; // ms
     private static final float LOCATION_DISTANCE = 1f; // 5 meters
@@ -31,14 +31,14 @@ public class GPSService extends Service {
 
 
         @Override
-        public void onLocationChanged(Location location)
-        {
+        public void onLocationChanged(Location location) {
             Log.e(TAG, "onLocationChanged: " + location);
+            if (MonitoredUser.ThisInstance != null) {
+                MonitoredUser.ThisInstance.updateGPSLatLng(location);
+                MonitoredUser.ThisInstance.updateStatusString();
+            }
 
             mLastLocation.set(location);
-            if (MapFragment.ThisInstance != null) {
-                MapFragment.ThisInstance.updatePatientLocation(location);
-            }
         }
 
         @Override
