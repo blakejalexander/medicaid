@@ -19,9 +19,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 
-
-
-
 /** Fall-Like Event detection finite state machine.
  *  TODO: Blake - Need to write doc explaining how it works (or how its intended to work) still.
  */
@@ -53,7 +50,7 @@ class FallLikeEventDetector {
     private final long PRE_IMPACT_JUST_BEFORE_MS = 500;
 
     /* The time to look back from the end of an impact to find the start of it. */
-    private final long IMPACT_END_LOOKBACK_MS = POST_FALL_TIMEOUT_MS + PRE_IMPACT_JUST_BEFORE_MS;
+    private final long IMPACT_END_LOOKBACK_MS = POST_PEAK_TIMEOUT_MS + PRE_IMPACT_JUST_BEFORE_MS;
 
     /* State 'timers', really just a relative timestamp that is checked. */
     private long postPeakTimeStart;
@@ -69,6 +66,9 @@ class FallLikeEventDetector {
     private long triggerPeakTime;
     private long impactStart;
     private long impactEnd;
+
+    /* The last reading by the FSM. Used for edge cases. */
+    private long lastReadingTimestamp;
 
     /* Feature indexes. TODO: Blake - explain me. */
     public final int INDEX_IMPACT_DURATION = 0;
@@ -136,10 +136,11 @@ class FallLikeEventDetector {
          *  prefall duration    - defined as the time difference between the dip before the
          *                        impact start time (above) and the last value above 90%
          *                        GRAVITY_EARTH
-         *                        TODO: FINISH ME
+         *                        TODO: FIXME: GET ME WORKING, IT DOESN'T ATM
          *
          *
          *  prefall minimum     - the minimum value within the aforementioned prefall duration
+         *                        TODO: FIXME: ME TOO
          *
          *  impact violence     - defined as the number of values not within 20% of GRAVITY_EARTH
          *                        divided by the total amount of values.
@@ -191,9 +192,8 @@ class FallLikeEventDetector {
              * alternative approach.
              */
             FallLikeEventDataWindow impactWindow = window.clone();
-            impactWindow.removeOlderThan(impactStart - PRE_IMPACT_JUST_BEFORE_MS);
+            impactWindow.removeOlderThan(impactStart);
             impactWindow.removeNewerThan(impactEnd);
-            impactWindow.removeOlderThanBy(impactStart, 0);
             double num = impactWindow.size() - impactWindow.getNumEntriesInRange(
                     0.8 * GRAVITY_EARTH,
                     1.2 * GRAVITY_EARTH);
@@ -266,6 +266,9 @@ class FallLikeEventDetector {
 
         /* Remove any entries which are newer (numerically larger) than a certain timestamp. */
         void removeNewerThan(long timestampReference) {
+            /* TODO: Can improve performance by constructing a new window and adding to it
+             * whenever the if statement is false, breaking when its true. The new window can be
+             * set to this. whatever was in this before that point is trashed. */
 
             Iterator<Long> iterator = this.keySet().iterator();
 
@@ -275,13 +278,6 @@ class FallLikeEventDetector {
 
                 if (key > timestampReference) {
                     iterator.remove();
-                } else {
-
-                    /* We exploit the fact that LinkedHashMap.keySet is ordered by
-                     * insertion to save the cost of iterating through the whole
-                     * thing to find state values. The first time we don't find one, we're done.
-                     */
-                    break;
                 }
             }
         }
@@ -502,22 +498,25 @@ class FallLikeEventDetector {
                  * if the timer expires. */
                 state = STATE_POST_PEAK_EVENT;
 
-                /* Handle the case where we don't see any acceleration spikes after the trigger. */
-                if (impactEnd == 0) {
-                    impactEnd = timestamp; /* Impact end time will become peaktime + timeout */
+                /* FIXME: HACK: Attempting to get around when Android occasionally doesn't sample
+                 * for up to 200ms after a impulse (such as hitting the phone). Haven't figured
+                 * out why but my current guess is that its something beyond our application layer
+                 * control, since Android's sampling rate is 'best effort'. */
+                if (lastReadingTimestamp == triggerPeakTime ) {
+                    impactEnd = timestamp;
                 }
 
                 break;
 
             case STATE_POST_FALL_EVENT:
 
-                fallLikeEventWindow.put(timestamp, G);
-
                 /* If our timer has expired. It's time to state transition out. */
                 if (timestamp - postFallTimeStart > POST_FALL_TIMEOUT_MS) {
                     state = STATE_WAIT_RECOVERY_EVENT;
                     break;
                 }
+
+                fallLikeEventWindow.put(timestamp, G);
 
                 /* Go back to the post-peak detection event state. Restart the timer. */
                 if (G >= THRESHOLD_PEAK) {
@@ -538,8 +537,8 @@ class FallLikeEventDetector {
 
             case STATE_WAIT_RECOVERY_EVENT:
 
-                /* TODO: FIXME: URGENT: extract features */
-
+                /* Reduce the dimensionality of the data by extracting notable features from it. */
+                FallLikeEventFeatures features = new FallLikeEventFeatures(fallLikeEventWindow);
 
 
                 /* Process window data. Do some sort of calculation???? */
@@ -608,5 +607,8 @@ class FallLikeEventDetector {
 
                 break;
         }
+
+        /* Store the last time we processed a sample in the FSM. */
+        lastReadingTimestamp = timestamp;
     }
 }
