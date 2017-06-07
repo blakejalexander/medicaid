@@ -619,7 +619,9 @@ public class FallLikeEventDetector {
 
         timestamp = TimeUnit.NANOSECONDS.convert(timestamp, TimeUnit.MILLISECONDS);
         FallLikeEventFeatures features = this.doClock(timestamp, G);
-        fsmReset();
+        if (features != null) {
+            fsmReset();
+        }
         return features; /* Only return features, window will be trashed in fsmReset() */
     }
 

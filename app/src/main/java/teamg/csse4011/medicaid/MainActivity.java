@@ -75,9 +75,8 @@ public class MainActivity extends AppCompatActivity {
                     /* for each file */
                     FallLikeEventDetector.FallLikeEventFeatures features = null;
 
-                    BufferedReader br = null;
                     FileReader fr = new FileReader(wind);
-                    br = new BufferedReader(fr);
+                    BufferedReader br = new BufferedReader(fr);
 
                     /* for each line */
                     String line = null;
@@ -122,7 +121,9 @@ public class MainActivity extends AppCompatActivity {
 
                     /* TODO: FIXME: Blake - handle better, but its debug code so don't care. */
                 } catch (FileNotFoundException e) {
+                    e.printStackTrace();
                 } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
