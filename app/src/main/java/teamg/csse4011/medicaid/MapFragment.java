@@ -60,6 +60,9 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
     /* Update the camera view and marker position on the map for given patient location. */
     public void updatePatientLocation(Location location) {
         // New location has now been determined
+        if (location == null) {
+            return;
+        }
         String msg = "Updated Location: " +
                 Double.toString(location.getLatitude()) + ", " +
                 Double.toString(location.getLongitude());
@@ -73,11 +76,11 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
 
         /* Update camera position */
         CameraUpdate center = CameraUpdateFactory.newLatLng(latLng);
-        CameraUpdate zoom = CameraUpdateFactory.zoomTo(24);
+//        CameraUpdate zoom = CameraUpdateFactory.zoomTo(24);
 
         if (getMap() != null) {
             getMap().moveCamera(center);
-            getMap().animateCamera(zoom);
+//            getMap().animateCamera(zoom);
         }
 
     }
@@ -180,16 +183,6 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
         }
     }
 
-    // Trigger new location updates at interval
-    protected void startLocationUpdates() {
-        // Create the location request
-        mLocationRequest = LocationRequest.create()
-                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                .setInterval(UPDATE_INTERVAL)
-                .setFastestInterval(FASTEST_INTERVAL);
-        // Request location updates
-//        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-    }
 
     @Override
     public void onConnected(Bundle bundle) {
@@ -203,7 +196,6 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
         }
 
         // Begin polling for new location updates.
-        startLocationUpdates();
         initCamera( mCurrentLocation );
     }
 

@@ -3,6 +3,7 @@ package teamg.csse4011.medicaid;
 import android.content.Intent;
 
 import android.location.Location;
+import android.os.BatteryManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -35,30 +36,27 @@ public class MonitoredUser extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_monitored_user);
         ThisInstance = this;
-        Log.d("onCreate", "onCreate called");
+
         /* TODO: Blake - Replace me with a user friendly solution, like a radio button */
         /* Add a background data collection service for (now at least) debugging purposes. */
 
-//        if (servicedStarted == false) {
-//            servicedStarted = true;
-
+        /* Start background data-acquiring services */
 
         Intent intentGPS = new Intent(this, GPSService.class);
-        //Start Service
         startService(intentGPS);
 
         Intent intent = new Intent(this, FallDetectionService.class);
         startService(intent);
-//        }
 
+        /* Associate relevant update text fields */
         portText = (TextView)findViewById(R.id.portTextView);
         ipAddrText = (TextView)findViewById(R.id.ipAddrTextView);
 
-        Log.d("4011server", getIpAddress());
-
+        /* Display this device's connect details on the same network */
         portText.setText(String.format("%d", SocketServerThread.SocketServerPORT));
         ipAddrText.setText(getIpAddress());
 
+        /* Open new socket to allow connection */
         Thread socketServerThread = new Thread(new SocketServerThread());
         socketServerThread.start();
     }
@@ -66,7 +64,6 @@ public class MonitoredUser extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Log.d("main", "destroy called");
     }
 
     /**
@@ -106,7 +103,6 @@ public class MonitoredUser extends AppCompatActivity {
         Log.d("4011server", json);
     }
 
-
     /*
      * Update methods.
      */
@@ -115,25 +111,37 @@ public class MonitoredUser extends AppCompatActivity {
     static Boolean patientGPSFlag = true;
     static Location patientGPSLocation = null;
     static int BleNearestNodeId = 1;
-    public static void updateStatus() {
 
-        patientStatus = "OKAY";
+    /* I would use enum or keys but a las, time is of the essence! */
+    public static void updateStatus(String status) {
+        /* Assume they are OKAY if given gibberish */
+        if (status != "OKAY" && status != "FALLEN") {
+            patientStatus = "OKAY";
+        } else {
+            patientStatus = status;
+        }
     }
 
+    /* TODO: Implement reading of battery percentage. */
     public static void updateBattery() {
-
-        patientBattery = 50;
+        patientBattery = 0;
     }
 
+    /* Determined by whether we can see a iBeacon node or not. */
     public static void updateGpsFlag() {
         /* TODO: Check if we can detect any single BLE node or not */
     }
 
+    /* We only need latitude and longitude from this */
     public static void updateGPSLatLng(Location location) {
         patientGPSLocation = location;
     }
 
-    public static void updateBleNodePosition() {
+    /*
+     * The unique ID of the node the device is closest to determines their approximate
+     * in-doors location.
+     */
+    public static void updateBleNodePosition(int id) {
 
     }
 
@@ -159,7 +167,6 @@ public class MonitoredUser extends AppCompatActivity {
                     socketServerReplyThread.run();
                     guardianSocket = socket;
                     Log.d("server", "Connected from " + socket.getInetAddress());
-
                 }
             } catch (IOException e) {
                 // TODO Auto-generated catch block
@@ -170,7 +177,6 @@ public class MonitoredUser extends AppCompatActivity {
     }
 
     private class SocketServerReplyThread extends Thread {
-
         private Socket hostThreadSocket;
         String outMsg;
 
@@ -178,7 +184,8 @@ public class MonitoredUser extends AppCompatActivity {
             this.hostThreadSocket = socket;
             this.outMsg = msg;
         }
-        PrintStream gPrintStream;
+
+        /* Sends the current status string to guardian users connected when requested */
         @Override
         public void run() {
             OutputStream outputStream;
@@ -188,39 +195,31 @@ public class MonitoredUser extends AppCompatActivity {
                 outputStream = hostThreadSocket.getOutputStream();
                 PrintStream printStream = new PrintStream(outputStream);
                 printStream.print(msgReply);
-                gPrintStream = printStream;
                 printStream.close();
 
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-
         }
-
     }
 
+    /* Get IP address of the local device */
     private String getIpAddress() {
         String ip = "";
         try {
-            Enumeration<NetworkInterface> enumNetworkInterfaces = NetworkInterface
-                    .getNetworkInterfaces();
+            Enumeration<NetworkInterface> enumNetworkInterfaces = NetworkInterface.getNetworkInterfaces();
             while (enumNetworkInterfaces.hasMoreElements()) {
-                NetworkInterface networkInterface = enumNetworkInterfaces
-                        .nextElement();
-                Enumeration<InetAddress> enumInetAddress = networkInterface
-                        .getInetAddresses();
+                NetworkInterface networkInterface = enumNetworkInterfaces.nextElement();
+                Enumeration<InetAddress> enumInetAddress = networkInterface.getInetAddresses();
                 while (enumInetAddress.hasMoreElements()) {
                     InetAddress inetAddress = enumInetAddress.nextElement();
 
                     if (inetAddress.isSiteLocalAddress()) {
-                        ip += ""
-                                + inetAddress.getHostAddress() + "\n";
+                        ip += "" + inetAddress.getHostAddress() + "\n";
                     }
-
-                }
-
-            }
+                } /* while (enumInetAddress.hasMoreElements()) */
+            } /* while (enumNetworkInterfaces.hasMoreElements()) */
 
         } catch (SocketException e) {
             // TODO Auto-generated catch block
