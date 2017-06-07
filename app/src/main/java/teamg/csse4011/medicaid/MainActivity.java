@@ -97,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
                             PrintWriter pw = new PrintWriter(out, true);
 
                             pw.println(features.impactDuration + "," + features.impactViolence +
-                                            "," + features.impactAverage +
+                                            "," + features.impactAverage + "," +
                                     features.postImpactAverage);
 
                             pw.close();
