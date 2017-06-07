@@ -575,7 +575,6 @@ public class FallLikeEventDetector {
 
                 /* Reduce the dimensionality of the data by extracting notable features from it. */
                 FallLikeEventFeatures features = new FallLikeEventFeatures(fallLikeEventWindow);
-                fsmReset();
                 return features;
         }
 
@@ -596,6 +595,7 @@ public class FallLikeEventDetector {
 
         if (rv != null) {
             this.debugDumpEventData(this.fallLikeEventWindow, rv);
+            fsmReset();
         }
 
         return rv;
@@ -610,11 +610,17 @@ public class FallLikeEventDetector {
      */
     public FallLikeEventFeatures replay(long timestamp, double G) {
 
+        /* NOTE: Internal data window can't be accessed when this function returns, whilst
+         * strictly an internal detail, keep it in mind if you expect window.csv files to be dumped
+         */
+
         /* NOTE: No need to call debugDumpEventData here, if we're replaying it. Responsibility
         *        of caller to write feature values to a .csv if desired. */
 
         timestamp = TimeUnit.NANOSECONDS.convert(timestamp, TimeUnit.MILLISECONDS);
-        return this.doClock(timestamp, G);
+        FallLikeEventFeatures features = this.doClock(timestamp, G);
+        fsmReset();
+        return features; /* Only return features, window will be trashed in fsmReset() */
     }
 
     /**
@@ -636,8 +642,8 @@ public class FallLikeEventDetector {
         for (int i = 0; i < 999; i++) {
             windF = new File(new File(fallDetectionService.filepath),
                     String.format(windowFileFormat, i));
-            featF = new File(new File(fallDetectionService.filepath), String.format
-                    (featureFileFormat, i));
+            featF = new File(new File(fallDetectionService.filepath),
+                    String.format(featureFileFormat, i));
 
             if (!windF.exists() && !featF.exists()) {
                 break;
@@ -672,25 +678,33 @@ public class FallLikeEventDetector {
             for (Map.Entry<Long, Double> entry : window.entrySet()) {
                 pw.println(entry.getKey() + "," + entry.getValue());
             }
+
+            pw.close();
+            out.close();
+
         } catch (FileNotFoundException e) {
             /* We already assured this can't happen. */
             e.printStackTrace();
+        } catch (IOException e) {
+            /* TODO: We don't handle becuase we're lazy. Fix me later. */
         }
 
         /* Write the feature data for the window to flash. */
         try {
-            FileOutputStream out = new FileOutputStream(windF, true);
+            FileOutputStream out = new FileOutputStream(featF, true);
             PrintWriter pw = new PrintWriter(out, true);
 
-            for (Map.Entry<Long, Double> entry : window.entrySet()) {
-                pw.println(features.impactDuration + "," + features.impactViolence +
-                        "," + features.impactAverage +
-                        features.postImpactAverage);
-            }
+            pw.println(features.impactDuration + "," + features.impactViolence +
+                    "," + features.impactAverage + "," + features.postImpactAverage);
+
+            pw.close();
+            out.close();
 
         } catch (FileNotFoundException e) {
             /* We already assured this can't happen. */
             e.printStackTrace();
+        } catch (IOException e) {
+            /* TODO: We don't handle becuase we're lazy. Fix me later. */
         }
 
         /* Inform Android that the files exist, so it can be viewed using USB immediately */
