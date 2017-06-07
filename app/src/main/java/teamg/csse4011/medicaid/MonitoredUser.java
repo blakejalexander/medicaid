@@ -254,12 +254,11 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         /* Assume they are OKAY if given gibberish */
         if (status != "OKAY" && status != "FALLEN") {
             patientStatus = "OKAY";
-        } else if (status == "PENDING") {
-            patientStatus = status;
+        } else if (status == "PENDING" && ThisInstance.needsHelp == false) {
 
             /* Ask patient for confirmation they are OKAY and track time asked */
             if (ThisInstance.hasBeenAsked == false) {
-
+                ThisInstance.hasBeenAsked = true;
                 TimerTask answerTimerTask = new TimerTask() {
                     @Override
                     public void run() {
@@ -272,6 +271,8 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 ThisInstance.answerTimer.schedule(answerTimerTask, 60);
                 ThisInstance.lastAskTime = android.os.SystemClock.uptimeMillis();
                 ThisInstance.askPatientForSafety();
+            } else {
+                patientStatus = status;
             }
 
         } else if (status == "NEEDS HELP") {
