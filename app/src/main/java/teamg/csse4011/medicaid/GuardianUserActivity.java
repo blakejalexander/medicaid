@@ -1,11 +1,16 @@
 package teamg.csse4011.medicaid;
 
 import android.app.Dialog;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Handler;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -245,59 +250,35 @@ public class GuardianUserActivity extends AppCompatActivity {
 
 
     void tellPeople() {
-        // custom dialog
-        final Dialog dialog = new Dialog(this);
-        dialog.setContentView(R.layout.dialog);
-        dialog.setTitle("Medicaid");
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(this)
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setContentTitle("My notification")
+                        .setContentText("Hello World!");
 
-        // set the custom dialog components - text, image and button
-        TextView text = (TextView) dialog.findViewById(R.id.text);
-        text.setText("A fall has been detected. Are you OKAY?");
-        ImageView image = (ImageView) dialog.findViewById(R.id.image);
-        image.setImageResource(android.R.drawable.ic_dialog_alert);
+// Creates an explicit intent for an Activity in your app
+        Intent resultIntent = new Intent(this, GuardianUserActivity.class);
 
-        Button dialogButton = (Button) dialog.findViewById(R.id.dialogButtonOK);
-
-        // if button is clicked, close the custom dialog
-        dialogButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-            }
-        });
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-        dialog.show();
-
-//
-//        NotificationCompat.Builder mBuilder =
-//                new NotificationCompat.Builder(this)
-//                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
-//                        .setContentTitle("My notification")
-//                        .setContentText("Hello World!");
-//
-//// Creates an explicit intent for an Activity in your app
-//        Intent resultIntent = new Intent(this, GuardianUserActivity.class);
-//
-//// The stack builder object will contain an artificial back stack for the
-//// started Activity.
-//// This ensures that navigating backward from the Activity leads out of
-//// your application to the Home screen.
-//        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-//// Adds the back stack for the Intent (but not the Intent itself)
-//        stackBuilder.addParentStack(GuardianUserActivity.class);
-//// Adds the Intent that starts the Activity to the top of the stack
-//        stackBuilder.addNextIntent(resultIntent);
-//        PendingIntent resultPendingIntent =
-//                stackBuilder.getPendingIntent(
-//                        0,
-//                        PendingIntent.FLAG_UPDATE_CURRENT
-//                );
-//        mBuilder.setContentIntent(resultPendingIntent);
-//        NotificationManager mNotificationManager =
-//                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-//// mId allows you to update the notification later on.
-//        int mId = 1;
-//        mNotificationManager.notify(mId, mBuilder.build());
+// The stack builder object will contain an artificial back stack for the
+// started Activity.
+// This ensures that navigating backward from the Activity leads out of
+// your application to the Home screen.
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+// Adds the back stack for the Intent (but not the Intent itself)
+        stackBuilder.addParentStack(GuardianUserActivity.class);
+// Adds the Intent that starts the Activity to the top of the stack
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent =
+                stackBuilder.getPendingIntent(
+                        0,
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                );
+        mBuilder.setContentIntent(resultPendingIntent);
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+// mId allows you to update the notification later on.
+        int mId = 1;
+        mNotificationManager.notify(mId, mBuilder.build());
     }
 
     private int pollInterval = 5000;
@@ -346,11 +327,11 @@ public class GuardianUserActivity extends AppCompatActivity {
         /*
          * Handle logic for non-normal statuses.
          */
-        if (status == "FALLEN") {
+        if (status == "NEEDS HELP") {
             tellPeople();
             statusTextView.setTextColor(Color.parseColor("#ff0000"));
             pollInterval = 2000;
-        } else if (status == "WAITING") {
+        } else if (status == "PENDING") {
             statusTextView.setTextColor(Color.parseColor("#ffff00"));
             pollInterval = 2500;
         } else if (status == "OKAY") {

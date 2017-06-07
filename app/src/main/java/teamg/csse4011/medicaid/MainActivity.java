@@ -28,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Context context = getApplicationContext();
-        CharSequence text = "Please enable Location sharing if not already!";
+        CharSequence text = "Please enable Location sharing and Bluetooth if not already!";
         int duration = Toast.LENGTH_SHORT;
 
         Toast toast = Toast.makeText(context, text, duration);

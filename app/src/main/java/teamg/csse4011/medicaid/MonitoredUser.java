@@ -1,16 +1,17 @@
 package teamg.csse4011.medicaid;
 
+import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothManager;
-import android.content.Context;
 import android.content.Intent;
-
 import android.location.Location;
-import android.os.BatteryManager;
+import android.os.Bundle;
 import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import org.altbeacon.beacon.Beacon;
@@ -30,19 +31,27 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import teamg.csse4011.medicaid.FallDetection.FallDetectionService;
 
 public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
     private final String TAG = "MonitoredUser";
 
-    private static boolean servicedStarted = false;
-
     public static MonitoredUser ThisInstance;
 
-    private TextView portText, ipAddrText, beaconText;
-    private BluetoothAdapter mBluetoothAdapter;
+    /* GUI objects */
 
+    private TextView portText, ipAddrText, beaconText;
+
+    /* Patient variables */
+    private boolean hasBeenAsked = false;
+    private Timer answerTimer = new Timer();
+    private long lastAskTime = -1;
+    private boolean needsHelp = false;
+
+    /* BLE room localisation */
     private double beaconDist = 0.0;
     private String beaconName = "";
     private BeaconManager beaconManager;
@@ -51,12 +60,12 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_monitored_user);
+        ThisInstance = this;
 
+        /* Beacon sensor */
         beaconManager = BeaconManager.getInstanceForApplication(this);
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
         beaconManager.bind(this);
-
-        ThisInstance = this;
 
         /* TODO: Blake - Replace me with a user friendly solution, like a radio button */
         /* Add a background data collection service for (now at least) debugging purposes. */
@@ -66,7 +75,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         Intent intentGPS = new Intent(this, GPSService.class);
         startService(intentGPS);
 
-        /* Fall-detection - acceleretomer */
+        /* Fall-detection - accelerometer */
         Intent intent = new Intent(this, FallDetectionService.class);
         startService(intent);
 
@@ -84,73 +93,80 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         socketServerThread.start();
     }
 
-
-
     private int counter0 = 0;
 
+    private String[] beaconMacAddr =
+            {
+                    "E0:F0:AD:BC:86:B0", // 0
+                    "F9:7C:B5:04:F3:58",
+                    "E5:DD:9B:2C:CB:DF", // 2
+                    "F8:C8:32:0D:4D:AD",
+                    "D5:93:66:41:50:3E", // 4
+                    "F9:44:C1:A0:7E:D5",
+                    "D3:4D:8E:07:3E:1F", // 6
+                    "CC:FA:79:3A:74:D1"
+            };
     private double[] beaconDistArray = new double[8];
-    private boolean[] beaconPresent = new boolean[8];
     private int beaconIndex = 0;
     @Override
     public void onBeaconServiceConnect() {
         beaconManager.setRangeNotifier(new RangeNotifier() {
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-                for (Beacon beacon: beacons) {
-                    if (beacon.getDistance() > 0.0) {
-                        counter0++;
-                        if (counter0 >= 15) {
-                            counter0 = 0;
-                            for (int x = 0; x < 8; x++) {
-                                beaconDistArray[x] = -1.0;
-                            }
-                        }
-                        Log.d(TAG, "I see a beacon that is" + beacon.getDistance() + "m away.");
-                        if (beacon.getBluetoothAddress().equals("E0:F0:AD:BC:86:B0")) {
-                            beaconIndex = 0;
-                        } else if (beacon.getBluetoothAddress().equals("F9:7C:B5:04:F3:58")) {
-                            beaconIndex = 1;
-                        } else if (beacon.getBluetoothAddress().equals("E5:DD:9B:2C:CB:DF")) {
-                            beaconIndex = 2;
-                        } else if (beacon.getBluetoothAddress().equals("F8:C8:32:0D:4D:AD")) {
-                            beaconIndex = 3;
-                        } else if (beacon.getBluetoothAddress().equals("D5:93:66:41:50:3E")) {
-                            beaconIndex = 4;
-                        } else if (beacon.getBluetoothAddress().equals("F9:44:C1:A0:7E:D5")) {
-                            beaconIndex = 5;
-                        } else if (beacon.getBluetoothAddress().equals("D3:4D:8E:07:3E:1F")) {
-                            beaconIndex = 6;
-                        } else if (beacon.getBluetoothAddress().equals("CC:FA:79:3A:74:D1")) {
-                            beaconIndex = 7;
-                        }
-                        Log.d(TAG, Integer.toString(beaconIndex) + ": " + beacon.getDistance());
-                        beaconDistArray[beaconIndex] = beacon.getDistance();
-                        beaconDist = 999;
-                        for (int i = 0; i < 8; i++) {
-                            if (beaconDistArray[i] < beaconDist && beaconDistArray[i] != -1.0) {
-                                beaconDist = beaconDistArray[i];
-                                beaconName = beacon.getBluetoothAddress();
-                                beaconIndex = i;
-                            }
-                        }
-                        Log.d(TAG, "The CLOSEST beacon ID is" + beaconName);
-                        MonitoredUser.this.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                beaconText.setText(Integer.toString(beaconIndex));
-                                ThisInstance.updateBleNodePosition(beaconIndex);
-                            }
-                        });
+            for (Beacon beacon: beacons) {
+                if (beacon.getDistance() > 0.0) {
 
-                        // Perform distance-specific action here
+                    /* Reset distances every 15 reads to prevent non-present beacons from
+                     * affecting closest beacon detection. */
+                    counter0++;
+                    if (counter0 >= 15) {
+                        counter0 = 0;
+                        for (int x = 0; x < 8; x++) {
+                            beaconDistArray[x] = -1.0;
+                        }
                     }
+
+                    Log.d(TAG, "I see a beacon that is " + beacon.getDistance() + "m away.");
+
+                    /* Look through known beacons to determine which beacon triggered the event */
+                    String macAddr = beacon.getBluetoothAddress();
+                    for (int n = 0; n < 8; n++) {
+                        if (beaconMacAddr[n].equals(macAddr)) {
+                            beaconIndex = n;
+                            break;
+                        }
+                    }
+
+                    Log.d(TAG, Integer.toString(beaconIndex) + ": " + beacon.getDistance());
+                    beaconDistArray[beaconIndex] = beacon.getDistance();
+
+                    /* Find closest beacon from current stored distances for each beacon */
+                    beaconDist = 999;
+                    for (int i = 0; i < 8; i++) {
+                        if (beaconDistArray[i] < beaconDist && beaconDistArray[i] != -1.0) {
+                            beaconDist = beaconDistArray[i];
+                            beaconName = macAddr;
+                            beaconIndex = i;
+                        }
+                    }
+                    Log.d(TAG, "The CLOSEST beacon ID is" + beaconName);
+                    MonitoredUser.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            beaconText.setText(Integer.toString(beaconIndex));
+                            ThisInstance.updateBleNodePosition(beaconIndex);
+                        }
+                    });
                 }
+            }
             }
         });
 
         try {
             beaconManager.startRangingBeaconsInRegion(new Region("myRangingUniqueId", null, null, null));
-        } catch (RemoteException e) {    }
+        } catch (RemoteException e) {
+
+        }
     }
 
 
@@ -171,18 +187,10 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         json += "\"" + patientStatus + "\"";
         json += ",";
 
-        /* Battery */
-//        json += "\"battery\":";
-//        json += String.format("%f", patientBattery);
-//        json += ",";
-
+        /* Determine whether to use GPS or not based on whether all stored distances are -1 or not */
         patientGPSFlag = false;
         for (int n = 0; n < 8; n++) {
-            if (beaconDistArray[n] == -1.0) {
-                patientGPSFlag = true;
-            } else {
-                patientGPSFlag = false;
-            }
+            patientGPSFlag = beaconDistArray[n] == -1.0;
         }
 
         /* Using GPS flag */
@@ -209,29 +217,66 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
      * Update methods.
      */
     static String patientStatus = "OKAY";
-    static float patientBattery = 99.0f;
     static Boolean patientGPSFlag = true;
     static Location patientGPSLocation = null;
     static int BleNearestNodeId = 1;
+
+    private void askPatientForSafety() {
+        // custom dialog
+        final Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog);
+        dialog.setTitle("Medicaid");
+
+        // set the custom dialog components - text, image and button
+        TextView text = (TextView) dialog.findViewById(R.id.text);
+        text.setText("A fall has been detected. Are you OKAY?");
+        ImageView image = (ImageView) dialog.findViewById(R.id.image);
+        image.setImageResource(android.R.drawable.ic_dialog_alert);
+
+        Button dialogButton = (Button) dialog.findViewById(R.id.dialogButtonOK);
+
+        // if button is clicked, close the custom dialog
+        dialogButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                answerTimer.cancel();
+                needsHelp = false;
+                hasBeenAsked = false;
+            }
+        });
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        dialog.show();
+    }
 
     /* I would use enum or keys but a las, time is of the essence! */
     public static void updateStatus(String status) {
         /* Assume they are OKAY if given gibberish */
         if (status != "OKAY" && status != "FALLEN") {
             patientStatus = "OKAY";
-        } else {
+        } else if (status == "PENDING") {
+            patientStatus = status;
+
+            /* Ask patient for confirmation they are OKAY and track time asked */
+            if (ThisInstance.hasBeenAsked == false) {
+
+                TimerTask answerTimerTask = new TimerTask() {
+                    @Override
+                    public void run() {
+                        ThisInstance.needsHelp = true;
+                        ThisInstance.answerTimer.cancel();
+                        updateStatus("NEEDS HELP");
+
+                    }
+                };
+                ThisInstance.answerTimer.schedule(answerTimerTask, 60);
+                ThisInstance.lastAskTime = android.os.SystemClock.uptimeMillis();
+                ThisInstance.askPatientForSafety();
+            }
+
+        } else if (status == "NEEDS HELP") {
             patientStatus = status;
         }
-    }
-
-    /* TODO: Implement reading of battery percentage. */
-    public static void updateBattery() {
-        patientBattery = 0;
-    }
-
-    /* Determined by whether we can see a iBeacon node or not. */
-    public static void updateGpsFlag() {
-        /* TODO: Check if we can detect any single BLE node or not */
     }
 
     /* We only need latitude and longitude from this */
@@ -255,7 +300,6 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
     private class SocketServerThread extends Thread {
 
         static final int SocketServerPORT = 8080;
-        int count = 0;
 
         @Override
         public void run() {
