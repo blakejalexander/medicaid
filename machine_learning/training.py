@@ -22,6 +22,21 @@ MEDICAID_TEST = "test.csv"
 # Model directory
 MEDICAID_MODEL_DIR = os.getcwd() + "/medicaid_model"
 
+# Number of classes to classify as
+NUMBER_CLASSES = 4
+
+def class_to_label(label):
+    if label == 0:
+        return "Fall"
+    elif label == 1:
+        return "Jump"
+    elif label == 2:
+        return "Walking"
+    elif label == 3:
+        return "Bump"
+    else:
+        return "NAME_ME"
+
 def main():
 
     # If the training and test sets aren't stored locally, abort mission
@@ -48,8 +63,8 @@ def main():
 
     # Build 3 layer DNN (classifier) with 10, 20, 10 hidden units respectively.
     classifier = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns,
-                                                hidden_units=[10, 20, 10],
-                                                n_classes=3,
+                                                hidden_units=[ 10, 30, 10],
+                                                n_classes=NUMBER_CLASSES,
                                                 model_dir=MEDICAID_MODEL_DIR)
 
     # Define the training inputs
@@ -60,7 +75,7 @@ def main():
         return x, y
 
     # Fit model.
-    classifier.fit(input_fn=get_train_inputs, steps=200000)
+    classifier.fit(input_fn=get_train_inputs, steps=100000)
 
     # Define the test inputs
     def get_test_inputs():
@@ -82,14 +97,6 @@ def main():
         return np.array(
             [[ 505,	0.82,	16.38,	9.91 ],
              [ 346,	0.95,	19.37,	9.89 ]], dtype=np.float32)
-
-    def class_to_label(label):
-        if label == 0:
-            return "Fall"
-        elif label == 1:
-            return "Jump"
-        elif label == 2:
-            return "Walking"
 
     predictions = list(classifier.predict(input_fn=new_samples))
     predictions = [ class_to_label(i) for i in predictions ]
