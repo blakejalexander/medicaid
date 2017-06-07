@@ -174,14 +174,14 @@ public class FallLikeEventDetector {
             subset.removeOlderThan(impactEnd - IMPACT_END_LOOKBACK_MS);
             subset.removeNewerThan(triggerPeakTime);
 
-            Map.Entry<Long, Double> dip = window.getFirstEntryLt(0.7 * GRAVITY_EARTH);
+            Map.Entry<Long, Double> dip = subset.getFirstEntryLt(0.7 * GRAVITY_EARTH);
             if (dip == null) {
 
                 impactStart = triggerPeakTime;
             } else {
 
                 subset.removeOlderThan(dip.getKey());
-                Map.Entry<Long, Double> start = window.getFirstEntryGt(THRESHOLD_PEAK / 2.0);
+                Map.Entry<Long, Double> start = subset.getFirstEntryGt(THRESHOLD_PEAK / 2.0);
                 if (start == null) {
                     impactStart = triggerPeakTime;
                 } else {
