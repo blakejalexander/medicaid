@@ -40,6 +40,13 @@ captures/
 .idea/dictionaries
 .idea/libraries
 
+# vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
 # Keystore files
 *.jks
 
