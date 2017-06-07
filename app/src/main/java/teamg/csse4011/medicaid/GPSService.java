@@ -9,8 +9,6 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 
-import java.util.Random;
-
 public class GPSService extends Service {
     private static final String TAG = "4011GPS";
     private LocationManager mLocationManager = null;
@@ -33,6 +31,7 @@ public class GPSService extends Service {
         @Override
         public void onLocationChanged(Location location) {
             Log.e(TAG, "onLocationChanged: " + location);
+
             if (MonitoredUser.ThisInstance != null) {
                 MonitoredUser.ThisInstance.updateGPSLatLng(location);
                 MonitoredUser.ThisInstance.updateStatusString();

@@ -1,18 +1,27 @@
 package teamg.csse4011.medicaid;
 
+import android.app.Dialog;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Handler;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.google.android.gms.maps.SupportMapFragment;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.PointsGraphSeries;
@@ -27,17 +36,22 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.security.Guard;
-import java.util.concurrent.TimeoutException;
+import java.util.Random;
 
 public class GuardianUserActivity extends AppCompatActivity {
+    /* Default connection details */
+    public String currIpAddr = "10.89.185.225";
+    public int currPort = 8080;
+
+    private static final int    NUMBER_BEACONS = 4;
 
     /* BLE Graph config */
-    private static final int MARKER_SIZE = 1;
+    private static final float  BEACON_MARKER_SIZE = 1f;
+    private static final float  PERSON_MARKER_SIZE = 0.5f;
     private static final double MAP_DISABLED_ALPHA = 0.3;
-    private TextView textViewConnectFlag;
+    private TextView textViewConnectFlag, statusTextView, textViewLastUpdated;
 
-    static GuardianUserActivity ThisInstance;
+    public static GuardianUserActivity ThisInstance;
     GraphView bleGraph;
 
     @Override
@@ -49,9 +63,13 @@ public class GuardianUserActivity extends AppCompatActivity {
         editTextAddress = (EditText)findViewById(R.id.ipAddrEditText);
         editTextPort = (EditText)findViewById(R.id.portEditText);
         textViewConnectFlag = (TextView) findViewById(R.id.textViewConnectFlag);
+        statusTextView = (TextView) findViewById(R.id.statusTextView);
+        textViewLastUpdated = (TextView) findViewById(R.id.lastUpdatedTextView);
 
         // Get the Intent that started this activity and extract the string
         Intent intent = getIntent();
+
+        statusTextView.requestFocus();
     }
 
     /*
@@ -59,9 +77,7 @@ public class GuardianUserActivity extends AppCompatActivity {
      * GPS position.
      */
     public void toggleGoogleMapVisibility(Boolean flag) {
-        // Hide layout
         FrameLayout map = (FrameLayout) findViewById(R.id.mapLayout);
-//        map.setVisibility(flag ? View.VISIBLE : View.INVISIBLE);
         map.setAlpha((float)(flag ? 1.0 : MAP_DISABLED_ALPHA));
 
     }
@@ -70,9 +86,7 @@ public class GuardianUserActivity extends AppCompatActivity {
      * Toggles the relative visibility of the BLE multilateration estimated position.
      */
     public void toggleBleMapVisibility(Boolean flag) {
-        // Hide layout
         FrameLayout map = (FrameLayout) findViewById(R.id.bleLayout);
-//        map.setVisibility(flag ? View.VISIBLE : View.INVISIBLE);
         map.setAlpha((float)(flag ? 1.0 : MAP_DISABLED_ALPHA));
     }
 
@@ -82,20 +96,35 @@ public class GuardianUserActivity extends AppCompatActivity {
      * Clears the map first then adds a new marker.
      *
      */
+    private PointsGraphSeries<DataPoint> bleMarkerSeries;
     public static void updateBleMarkerPosition(Double x, Double y) {
         if (ThisInstance != null) {
             if (ThisInstance.bleGraph != null) {
                 /* Clear map first */
-                ThisInstance.bleGraph.removeAllSeries();
+                ThisInstance.bleGraph.removeSeries(ThisInstance.bleMarkerSeries);
+
                 PointsGraphSeries<DataPoint> series = new PointsGraphSeries<>(new DataPoint[] {
                         new DataPoint(x, y),
                 });
 
+                ThisInstance.bleMarkerSeries = series;
+
                 /* Set size and display on the grid */
-                series.setSize((float)(MARKER_SIZE * Math.PI * Math.PI));
+                series.setSize((float)(PERSON_MARKER_SIZE *Math.PI * Math.PI));
+                series.setColor(Color.argb(255, 255, 0, 0));
                 ThisInstance.bleGraph.addSeries(series);
             }
         }
+    }
+
+    /*
+     * Update map to show person at closest node they are at.
+     */
+    public void updateBleNearestNode(int id) {
+        if (id < 0 || id > (NUMBER_BEACONS - 1)) {
+            return;
+        }
+        updateBleMarkerPosition(this.pair[id].X(), this.pair[id].Y());
     }
 
     /*
@@ -111,26 +140,74 @@ public class GuardianUserActivity extends AppCompatActivity {
         graph.getViewport().setXAxisBoundsManual(true);
     }
 
-    public String currIpAddr = "10.89.184.67";
-    public int currPort = 8080;
+
     public void updateConnection(View view) {
         currIpAddr = editTextAddress.getText().toString();
         currPort = Integer.parseInt(editTextPort.getText().toString());
+        view.clearFocus();
+    }
+
+    public class XYPair
+    {
+        private final Double xIn;
+        private final Double yIn;
+
+        public XYPair(Double x, Double y)
+        {
+            xIn = x;
+            yIn = y;
+        }
+
+        public Double X()   { return xIn; }
+        public Double Y() { return yIn; }
     }
 
     /*
      * Setup function to create the BLE grid.
      */
+    XYPair[] pair = new XYPair[18];
+    // 10 beacons, xy pos
     public void setupBleMap() {
         GraphView graph = (GraphView) findViewById(R.id.graph);
         PointsGraphSeries<DataPoint> series = new PointsGraphSeries<>(new DataPoint[] {
-                new DataPoint(1.5, 1.5),
+                new DataPoint(0.0, 1.0),
         });
-
-        series.setSize((float)(MARKER_SIZE * Math.PI * Math.PI));
+        bleMarkerSeries = series;
+        series.setSize((float)(PERSON_MARKER_SIZE * Math.PI * Math.PI * 0.5));
 
         graph.addSeries(series);
         series.setShape(PointsGraphSeries.Shape.POINT);
+        int i = 0;
+
+        /* Position of beacons */
+        pair[i++] = new XYPair(0d, 3.0d);     // 0 - KbwM
+        pair[i++] = new XYPair(3.0, 3.0);   // 1 - x0j4
+        pair[i++] = new XYPair(0.0, 0.0);   // 2 - 7CmJ
+        pair[i++] = new XYPair(3.0, 0.0);   // 3 - hKNK
+//        pair[i++] = new XYPair(1d, 3d);   // 4 - wwtU
+//        pair[i++] = new XYPair(2d, 3d);   // 5 - gxJj
+//        pair[i++] = new XYPair(1d, 1.5d);   // 6 - ko0j
+//        pair[i++] = new XYPair(2d, 1.5d);   // 7 - hhAz
+//        pair[i++] = new XYPair(1.5d, 0d);   // 8 -
+
+        i = 0;
+        PointsGraphSeries<DataPoint> series2 = new PointsGraphSeries<>(new DataPoint[] {
+                new DataPoint(pair[i].X(), pair[i++].Y()), // 0
+                new DataPoint(pair[i].X(), pair[i++].Y()),
+                new DataPoint(pair[i].X(), pair[i++].Y()), // 2
+                new DataPoint(pair[i].X(), pair[i++].Y()),
+//                new DataPoint(pair[i].X(), pair[i++].Y()), // 4
+//                new DataPoint(pair[i].X(), pair[i++].Y()),
+//                new DataPoint(pair[i].X(), pair[i++].Y()), // 6
+//                new DataPoint(pair[i].X(), pair[i++].Y()),
+//                new DataPoint(pair[i].X(), pair[i++].Y()), // 8
+        });
+        series2.setSize((float)(BEACON_MARKER_SIZE * Math.PI * Math.PI));
+        series2.setColor(Color.argb(100, 0, 0, 0));
+
+        graph.addSeries(series2);
+        series2.setShape(PointsGraphSeries.Shape.POINT);
+
         setBleMapBounds(graph);
         this.bleGraph = graph;
     }
@@ -138,32 +215,6 @@ public class GuardianUserActivity extends AppCompatActivity {
 
     private boolean usingGPSFlag = false;
 
-    // stub metohd only - received packet/JSON msg from monitoring device
-    public void stub () {
-        boolean jsonUsingGPSFlag = false;
-        double jsonBleX = 0., jsonBleY = 0.;
-        float jsonGpsLatitude, jsonGpsLongitude;
-
-        /* Extract data from arrived JSON packet */
-
-        /* Toggle relative visibility of map showing relative position */
-        if (jsonUsingGPSFlag != this.usingGPSFlag) {
-            this.usingGPSFlag = jsonUsingGPSFlag;
-            this.toggleGoogleMapVisibility(this.usingGPSFlag);
-            this.toggleBleMapVisibility(!this.usingGPSFlag);
-        }
-
-        /* Update with new GPS latitude and longitude */
-        if (this.usingGPSFlag) {
-//            MapFragment.ThisInstance.updatePatientLocation();
-        } else { /* Update with new BLE position */
-            this.updateBleMarkerPosition(jsonBleX, jsonBleY);
-        }
-
-        /* Monitored user status is FALLEN or NEEDS HELP. Send notification to guardian user and
-         * emphasise it in the screen.
-         */
-    }
 
     @Override
     protected void onStart() {
@@ -193,19 +244,55 @@ public class GuardianUserActivity extends AppCompatActivity {
             requestData();
 
             /* Periodically repeat action */
-            handler.postDelayed(runnableCode, 5000);
+            handler.postDelayed(runnableCode, pollInterval);
         }
     };
 
 
+    void tellPeople() {
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(this)
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setContentTitle("My notification")
+                        .setContentText("Hello World!");
+
+// Creates an explicit intent for an Activity in your app
+        Intent resultIntent = new Intent(this, GuardianUserActivity.class);
+
+// The stack builder object will contain an artificial back stack for the
+// started Activity.
+// This ensures that navigating backward from the Activity leads out of
+// your application to the Home screen.
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+// Adds the back stack for the Intent (but not the Intent itself)
+        stackBuilder.addParentStack(GuardianUserActivity.class);
+// Adds the Intent that starts the Activity to the top of the stack
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent =
+                stackBuilder.getPendingIntent(
+                        0,
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                );
+        mBuilder.setContentIntent(resultPendingIntent);
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+// mId allows you to update the notification later on.
+        int mId = 1;
+        mNotificationManager.notify(mId, mBuilder.build());
+    }
+
+    private int pollInterval = 5000;
+    private long prevTime = 0;
     /*
      * CLIENT-SIDE CONNECTION CODE
      */
-
     public void interpretJson(String msg) {
+        long currTime = android.os.SystemClock.uptimeMillis();
+        prevTime = currTime;
         String status = "";
         boolean jsonUsingGPSFlag = false;
-        double jsonGpsLatitude = 0., jsonGpsLongitude = 0.;
+        double jsonGpsLatitude = 153, jsonGpsLongitude = -27.;
+        int jsonBlePos = 0;
 
         JSONObject jObject = null;
         Log.d("4011json", "parsing " + msg);
@@ -215,12 +302,12 @@ public class GuardianUserActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-
         try {
             status = jObject.getString("status");
             jsonUsingGPSFlag = jObject.getBoolean("usingGps");
             jsonGpsLatitude = jObject.getDouble("latitude");
             jsonGpsLongitude = jObject.getDouble("longitude");
+            jsonBlePos = jObject.getInt("nearestBleNode");
 
         } catch (JSONException e) {
             e.printStackTrace();
@@ -237,6 +324,21 @@ public class GuardianUserActivity extends AppCompatActivity {
 
         /* Extract data from arrived JSON packet */
 
+        /*
+         * Handle logic for non-normal statuses.
+         */
+        if (status == "NEEDS HELP") {
+            tellPeople();
+            statusTextView.setTextColor(Color.parseColor("#ff0000"));
+            pollInterval = 2000;
+        } else if (status == "PENDING") {
+            statusTextView.setTextColor(Color.parseColor("#ffff00"));
+            pollInterval = 2500;
+        } else if (status == "OKAY") {
+            statusTextView.setTextColor(Color.parseColor("#118800"));
+            pollInterval = 5000;
+        }
+        statusTextView.setText(status);
 
         /* Toggle relative visibility of map showing relative position */
 //        if (jsonUsingGPSFlag != this.usingGPSFlag) {
@@ -244,15 +346,15 @@ public class GuardianUserActivity extends AppCompatActivity {
             this.toggleGoogleMapVisibility(this.usingGPSFlag);
             this.toggleBleMapVisibility(!this.usingGPSFlag);
 //        }
-
         if (this.usingGPSFlag) {
-            Location targetLocation = new Location("");//provider name is unnecessary
-            targetLocation.setLatitude(jsonGpsLatitude);//your coords of course
+            Location targetLocation = new Location("");
+            targetLocation.setLatitude(jsonGpsLatitude);
             targetLocation.setLongitude(jsonGpsLongitude);
             MapFragment.ThisInstance.updatePatientLocation(targetLocation);
         } else { /* Update with new BLE position */
-//            this.updateBleMarkerPosition(jsonBleX, jsonBleY);
+            this.updateBleNearestNode(jsonBlePos);
         }
+        this.updateBleNearestNode(jsonBlePos);
     }
 
     public class MyClientTask extends AsyncTask<Void, Void, Void> {
@@ -266,11 +368,14 @@ public class GuardianUserActivity extends AppCompatActivity {
             dstPort = port;
         }
 
+        /*
+         * Attempts to connect to current given port and IP address, with a timeout of 1 second.
+         * Data is interpreted on the main UI thread if a message is received.
+         */
         @Override
         protected Void doInBackground(Void... arg0) {
             Socket socket = null;
             try {
-                Log.d("4011guardian", "try socket");
                 socket = new Socket();
                 socket.connect(new InetSocketAddress(dstAddress, dstPort), 1000);
                 socket.setSoTimeout(1000);
@@ -290,11 +395,9 @@ public class GuardianUserActivity extends AppCompatActivity {
                     byteArrayOutputStream.write(buffer, 0, bytesRead);
                     response += byteArrayOutputStream.toString("UTF-8");
                 }
-//                Log.d("4011guardian", "Received: [" + byteArrayOutputStream.toString() + "]");
 
-
+                /* Handle interpretation logic in main UI thread */
                 GuardianUserActivity.this.runOnUiThread(new Runnable() {
-
                     @Override
                     public void run() {
                         interpretJson(response);
@@ -315,6 +418,7 @@ public class GuardianUserActivity extends AppCompatActivity {
                 e.printStackTrace();
                 response = "IOException: " + e.toString();
             } finally{
+                /* Close socket */
                 if (socket != null){
                     try {
                         socket.close();
@@ -324,10 +428,12 @@ public class GuardianUserActivity extends AppCompatActivity {
                     }
                 }
             }
-            GuardianUserActivity.this.runOnUiThread(new Runnable() {
 
+            /* Update status text field */
+            GuardianUserActivity.this.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
+                    textViewLastUpdated.setText(String.format("%.02f s ago", (android.os.SystemClock.uptimeMillis() - prevTime) / 1000f));
                     textViewConnectFlag.setText(response);
                 }
             });

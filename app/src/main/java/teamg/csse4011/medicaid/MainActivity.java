@@ -1,5 +1,6 @@
 package teamg.csse4011.medicaid;
 
+import android.content.Context;
 import android.content.Intent;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
@@ -8,6 +9,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,22 +34,30 @@ public class MainActivity extends AppCompatActivity {
         /* If the required folders don't exist, create them. */
         createDataModelFolders();
 
+        Context context = getApplicationContext();
+        CharSequence text = "Please enable Location sharing and Bluetooth if not already!";
+        int duration = Toast.LENGTH_SHORT;
+
+        Toast toast = Toast.makeText(context, text, duration);
+        toast.show();
     }
 
     public void guardianModeButtonCallback(View view) {
         Intent intent = new Intent(this, GuardianUserActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivityIfNeeded(intent, 0);
+
+        Button button = (Button)findViewById(R.id.btnMonitoredUser);
+        button.setEnabled(false);
     }
 
-    /*
-     *
-     */
     public void monitoredModeButtonCallback(View view) {
-        Log.d("mainActivity", "button callback");
         Intent intent = new Intent(this, MonitoredUser.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivityIfNeeded(intent, 0);
+
+        Button button = (Button)findViewById(R.id.btnGuardian);
+        button.setEnabled(false);
     }
 
     /**
