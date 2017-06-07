@@ -60,3 +60,6 @@ google-services.json
 freeline.py
 freeline/
 freeline_project_description.json
+
+# Machine learning model data (not output)
+machine_learning/medicaid_model
