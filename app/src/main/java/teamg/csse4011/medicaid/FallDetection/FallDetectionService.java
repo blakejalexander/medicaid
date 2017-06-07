@@ -50,7 +50,7 @@ public class FallDetectionService extends Service implements SensorEventListener
 
     /* DEBUG: Remove these ASAP when done. */
     final String baseDir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
-    final String dirname = "blake-csse4011";
+    final String dirname = "CSSE4011_DATA";
     final String filepath = baseDir + File.separator + dirname;
     private File testdata;
 
@@ -161,6 +161,7 @@ public class FallDetectionService extends Service implements SensorEventListener
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
         /* Do nothing for now. At this point in time we don't care. */
+        Log.d(TAG, "onAccuracyChanged!");
     }
 
     private class SensorDataProcessor implements Runnable {
