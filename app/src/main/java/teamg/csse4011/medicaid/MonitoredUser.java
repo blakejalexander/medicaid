@@ -243,16 +243,26 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 answerTimer.cancel();
                 needsHelp = false;
                 hasBeenAsked = false;
+                MonitoredUser.updateStatus("OKAY");
             }
         });
         dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
         dialog.show();
     }
 
-    /* I would use enum or keys but a las, time is of the essence! */
+    /**
+     * Update status of patient.
+     *
+     * If they receive a PENDING status, due to a fall detected, open a dialog prompt with a
+     * timeout. Timer succesfully expiring will set the status to NEEDS HELP and nullify any
+     * future PENDING status updates -- until the person closes the dialog, which will reset
+     * the status.
+     *
+     * @param status    "OKAY", "PENDING" or "NEEDS HELP" -- everything else sets "OKAY"
+     */
     public static void updateStatus(String status) {
         /* Assume they are OKAY if given gibberish */
-        if (status != "OKAY" && status != "FALLEN") {
+        if (status != "OKAY" && status != "PENDING" && status != "NEEDS HELP") {
             patientStatus = "OKAY";
         } else if (status == "PENDING" && ThisInstance.needsHelp == false) {
 
@@ -264,7 +274,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                     public void run() {
                         ThisInstance.needsHelp = true;
                         ThisInstance.answerTimer.cancel();
-                        updateStatus("NEEDS HELP");
+                        MonitoredUser.updateStatus("NEEDS HELP");
 
                     }
                 };
@@ -277,6 +287,8 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
 
         } else if (status == "NEEDS HELP") {
             patientStatus = status;
+        } else {
+            patientStatus = "OKAY";
         }
     }
 
