@@ -34,11 +34,15 @@ import java.net.UnknownHostException;
 import java.util.Random;
 
 public class GuardianUserActivity extends AppCompatActivity {
+    /* Default connection details */
+    public String currIpAddr = "10.89.185.225";
+    public int currPort = 8080;
 
-    private static final int NUMBER_BEACONS = 4;
+    private static final int    NUMBER_BEACONS = 4;
 
     /* BLE Graph config */
-    private static final int MARKER_SIZE = 1;
+    private static final float  BEACON_MARKER_SIZE = 1f;
+    private static final float  PERSON_MARKER_SIZE = 0.5f;
     private static final double MAP_DISABLED_ALPHA = 0.3;
     private TextView textViewConnectFlag, statusTextView, textViewLastUpdated;
 
@@ -68,9 +72,7 @@ public class GuardianUserActivity extends AppCompatActivity {
      * GPS position.
      */
     public void toggleGoogleMapVisibility(Boolean flag) {
-        // Hide layout
         FrameLayout map = (FrameLayout) findViewById(R.id.mapLayout);
-//        map.setVisibility(flag ? View.VISIBLE : View.INVISIBLE);
         map.setAlpha((float)(flag ? 1.0 : MAP_DISABLED_ALPHA));
 
     }
@@ -79,9 +81,7 @@ public class GuardianUserActivity extends AppCompatActivity {
      * Toggles the relative visibility of the BLE multilateration estimated position.
      */
     public void toggleBleMapVisibility(Boolean flag) {
-        // Hide layout
         FrameLayout map = (FrameLayout) findViewById(R.id.bleLayout);
-//        map.setVisibility(flag ? View.VISIBLE : View.INVISIBLE);
         map.setAlpha((float)(flag ? 1.0 : MAP_DISABLED_ALPHA));
     }
 
@@ -102,18 +102,23 @@ public class GuardianUserActivity extends AppCompatActivity {
                         new DataPoint(x, y),
                 });
 
-
                 ThisInstance.bleMarkerSeries = series;
 
                 /* Set size and display on the grid */
-                series.setSize((float)(MARKER_SIZE * 0.5 * Math.PI * Math.PI));
+                series.setSize((float)(PERSON_MARKER_SIZE *Math.PI * Math.PI));
                 series.setColor(Color.argb(255, 255, 0, 0));
                 ThisInstance.bleGraph.addSeries(series);
             }
         }
     }
 
+    /*
+     * Update map to show person at closest node they are at.
+     */
     public void updateBleNearestNode(int id) {
+        if (id < 0 || id > (NUMBER_BEACONS - 1)) {
+            return;
+        }
         updateBleMarkerPosition(this.pair[id].X(), this.pair[id].Y());
     }
 
@@ -130,8 +135,7 @@ public class GuardianUserActivity extends AppCompatActivity {
         graph.getViewport().setXAxisBoundsManual(true);
     }
 
-    public String currIpAddr = "10.90.185.225";
-    public int currPort = 8080;
+
     public void updateConnection(View view) {
         currIpAddr = editTextAddress.getText().toString();
         currPort = Integer.parseInt(editTextPort.getText().toString());
@@ -164,22 +168,22 @@ public class GuardianUserActivity extends AppCompatActivity {
                 new DataPoint(0.0, 1.0),
         });
         bleMarkerSeries = series;
-        series.setSize((float)(MARKER_SIZE * Math.PI * Math.PI * 0.5));
+        series.setSize((float)(PERSON_MARKER_SIZE * Math.PI * Math.PI * 0.5));
 
         graph.addSeries(series);
         series.setShape(PointsGraphSeries.Shape.POINT);
         int i = 0;
 
         /* Position of beacons */
-        pair[i++] = new XYPair(0d, 0d);     // 0 - KbwM
+        pair[i++] = new XYPair(0d, 3.0d);     // 0 - KbwM
         pair[i++] = new XYPair(3.0, 3.0);   // 1 - x0j4
-        pair[i++] = new XYPair(0.0, 3.0);   // 2 - 7CmJ
+        pair[i++] = new XYPair(0.0, 0.0);   // 2 - 7CmJ
         pair[i++] = new XYPair(3.0, 0.0);   // 3 - hKNK
-        pair[i++] = new XYPair(1d, 3d);   // 4 - wwtU
-        pair[i++] = new XYPair(2d, 3d);   // 5 - gxJj
-        pair[i++] = new XYPair(1d, 1.5d);   // 6 - ko0j
-        pair[i++] = new XYPair(2d, 1.5d);   // 7 - hhAz
-        pair[i++] = new XYPair(1.5d, 0d);   // 8 -
+//        pair[i++] = new XYPair(1d, 3d);   // 4 - wwtU
+//        pair[i++] = new XYPair(2d, 3d);   // 5 - gxJj
+//        pair[i++] = new XYPair(1d, 1.5d);   // 6 - ko0j
+//        pair[i++] = new XYPair(2d, 1.5d);   // 7 - hhAz
+//        pair[i++] = new XYPair(1.5d, 0d);   // 8 -
 
         i = 0;
         PointsGraphSeries<DataPoint> series2 = new PointsGraphSeries<>(new DataPoint[] {
@@ -187,13 +191,13 @@ public class GuardianUserActivity extends AppCompatActivity {
                 new DataPoint(pair[i].X(), pair[i++].Y()),
                 new DataPoint(pair[i].X(), pair[i++].Y()), // 2
                 new DataPoint(pair[i].X(), pair[i++].Y()),
-                new DataPoint(pair[i].X(), pair[i++].Y()), // 4
-                new DataPoint(pair[i].X(), pair[i++].Y()),
-                new DataPoint(pair[i].X(), pair[i++].Y()), // 6
-                new DataPoint(pair[i].X(), pair[i++].Y()),
-                new DataPoint(pair[i].X(), pair[i++].Y()), // 8
+//                new DataPoint(pair[i].X(), pair[i++].Y()), // 4
+//                new DataPoint(pair[i].X(), pair[i++].Y()),
+//                new DataPoint(pair[i].X(), pair[i++].Y()), // 6
+//                new DataPoint(pair[i].X(), pair[i++].Y()),
+//                new DataPoint(pair[i].X(), pair[i++].Y()), // 8
         });
-        series2.setSize((float)(MARKER_SIZE * Math.PI * Math.PI));
+        series2.setSize((float)(BEACON_MARKER_SIZE * Math.PI * Math.PI));
         series2.setColor(Color.argb(100, 0, 0, 0));
 
         graph.addSeries(series2);
@@ -235,7 +239,7 @@ public class GuardianUserActivity extends AppCompatActivity {
             requestData();
 
             /* Periodically repeat action */
-            handler.postDelayed(runnableCode, 5000);
+            handler.postDelayed(runnableCode, pollInterval);
         }
     };
 
@@ -296,6 +300,7 @@ public class GuardianUserActivity extends AppCompatActivity {
 //        mNotificationManager.notify(mId, mBuilder.build());
     }
 
+    private int pollInterval = 5000;
     private long prevTime = 0;
     /*
      * CLIENT-SIDE CONNECTION CODE
@@ -306,6 +311,7 @@ public class GuardianUserActivity extends AppCompatActivity {
         String status = "";
         boolean jsonUsingGPSFlag = false;
         double jsonGpsLatitude = 153, jsonGpsLongitude = -27.;
+        int jsonBlePos = 0;
 
         JSONObject jObject = null;
         Log.d("4011json", "parsing " + msg);
@@ -320,6 +326,7 @@ public class GuardianUserActivity extends AppCompatActivity {
             jsonUsingGPSFlag = jObject.getBoolean("usingGps");
             jsonGpsLatitude = jObject.getDouble("latitude");
             jsonGpsLongitude = jObject.getDouble("longitude");
+            jsonBlePos = jObject.getInt("nearestBleNode");
 
         } catch (JSONException e) {
             e.printStackTrace();
@@ -342,10 +349,13 @@ public class GuardianUserActivity extends AppCompatActivity {
         if (status == "FALLEN") {
             tellPeople();
             statusTextView.setTextColor(Color.parseColor("#ff0000"));
+            pollInterval = 2000;
         } else if (status == "WAITING") {
             statusTextView.setTextColor(Color.parseColor("#ffff00"));
+            pollInterval = 2500;
         } else if (status == "OKAY") {
             statusTextView.setTextColor(Color.parseColor("#118800"));
+            pollInterval = 5000;
         }
         statusTextView.setText(status);
 
@@ -353,22 +363,17 @@ public class GuardianUserActivity extends AppCompatActivity {
 //        if (jsonUsingGPSFlag != this.usingGPSFlag) {
             this.usingGPSFlag = jsonUsingGPSFlag;
             this.toggleGoogleMapVisibility(this.usingGPSFlag);
-            this.toggleBleMapVisibility(this.usingGPSFlag);
+            this.toggleBleMapVisibility(!this.usingGPSFlag);
 //        }
-
         if (this.usingGPSFlag) {
             Location targetLocation = new Location("");
             targetLocation.setLatitude(jsonGpsLatitude);
             targetLocation.setLongitude(jsonGpsLongitude);
             MapFragment.ThisInstance.updatePatientLocation(targetLocation);
         } else { /* Update with new BLE position */
-            Random r = new Random();
-            int i1 = r.nextInt(NUMBER_BEACONS - 0 + 1) + 0;
-            this.updateBleNearestNode(i1);
+            this.updateBleNearestNode(jsonBlePos);
         }
-        Random r = new Random();
-        int i1 = r.nextInt(NUMBER_BEACONS - 0 + 1) + 0;
-        this.updateBleNearestNode(i1);
+        this.updateBleNearestNode(jsonBlePos);
     }
 
     public class MyClientTask extends AsyncTask<Void, Void, Void> {
