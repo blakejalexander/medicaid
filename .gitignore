@@ -62,4 +62,4 @@ freeline/
 freeline_project_description.json
 
 # Machine learning model data (not output)
-machine_learning/medicaid_model
+#machine_learning/medicaid_model
