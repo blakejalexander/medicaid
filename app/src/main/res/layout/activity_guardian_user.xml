@@ -39,8 +39,8 @@
         android:layout_height="wrap_content"
         android:text="PATIENT LOCATION:"
         android:textAppearance="@style/TextAppearance.AppCompat.Large"
-        tools:layout_constraintTop_creator="1"
         android:layout_marginStart="16dp"
+        tools:layout_constraintTop_creator="1"
         android:layout_marginTop="31dp"
         app:layout_constraintTop_toBottomOf="@+id/textView10"
         tools:layout_constraintLeft_creator="1"
@@ -103,52 +103,14 @@
         android:id="@+id/statusTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="28dp"
+        android:layout_marginStart="54dp"
         android:text="NORMAL"
         android:textColor="#118800"
         tools:layout_constraintTop_creator="1"
         android:layout_marginTop="15dp"
         app:layout_constraintTop_toBottomOf="@+id/textView"
         tools:layout_constraintLeft_creator="1"
-        tools:layout_editor_absoluteX="194dp" />
-
-    <FrameLayout
-        android:id="@+id/mapLayout"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginStart="16dp"
-        tools:layout_constraintTop_creator="1"
-        tools:layout_constraintRight_creator="1"
-        tools:layout_constraintBottom_creator="1"
-        app:layout_constraintBottom_toBottomOf="@+id/textView7"
-        app:layout_constraintRight_toRightOf="parent"
-        android:layout_marginTop="35dp"
-        tools:layout_constraintLeft_creator="1"
-        android:layout_marginBottom="38dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/textView12">
-
-        <fragment
-            android:id="@+id/mapFragment"
-            android:name="teamg.csse4011.medicaid.MapFragment"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            android:layout_marginBottom="16dp"
-            android:layout_marginEnd="24dp"
-            android:layout_marginStart="24dp"
-            android:layout_marginTop="29dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintHorizontal_bias="0.51"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/textView7"
-            app:layout_constraintVertical_bias="0.956"
-            tools:layout_constraintBottom_creator="1"
-            tools:layout_constraintLeft_creator="1"
-            tools:layout_constraintRight_creator="1"
-            tools:layout_constraintTop_creator="1" />
-    </FrameLayout>
+        app:layout_constraintLeft_toRightOf="@+id/textView6" />
 
     <EditText
         android:id="@+id/portEditText"
@@ -222,9 +184,10 @@
         android:text="Connected?"
         android:layout_marginStart="16dp"
         tools:layout_constraintTop_creator="1"
+        android:layout_marginTop="43dp"
+        app:layout_constraintTop_toBottomOf="@+id/textView8"
         tools:layout_constraintLeft_creator="1"
-        app:layout_constraintLeft_toLeftOf="parent"
-        tools:layout_editor_absoluteY="152dp" />
+        app:layout_constraintLeft_toLeftOf="parent" />
 
     <TextView
         android:id="@+id/textViewConnectFlag"
@@ -236,6 +199,8 @@
         tools:layout_constraintTop_creator="1"
         tools:layout_constraintBottom_creator="1"
         app:layout_constraintBottom_toBottomOf="@+id/textView11"
+        android:layout_marginTop="34dp"
+        app:layout_constraintTop_toBottomOf="@+id/ipAddrTextView"
         tools:layout_constraintLeft_creator="1"
         android:layout_marginBottom="36dp"
         app:layout_constraintLeft_toLeftOf="@+id/textView10" />
@@ -256,6 +221,44 @@
             android:id="@+id/graph"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginBottom="16dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="29dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintHorizontal_bias="0.51"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/textView7"
+            app:layout_constraintVertical_bias="0.956"
+            tools:layout_constraintBottom_creator="1"
+            tools:layout_constraintLeft_creator="1"
+            tools:layout_constraintRight_creator="1"
+            tools:layout_constraintTop_creator="1" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/mapLayout"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        tools:layout_constraintLeft_creator="1"
+        tools:layout_constraintRight_creator="1"
+        tools:layout_constraintTop_creator="1"
+        tools:layout_constraintBottom_creator="1"
+        android:layout_marginStart="24dp"
+        app:layout_constraintBottom_toBottomOf="@+id/textView7"
+        android:layout_marginEnd="24dp"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginTop="43dp"
+        app:layout_constraintTop_toBottomOf="@+id/textView11"
+        android:layout_marginBottom="42dp"
+        app:layout_constraintLeft_toLeftOf="parent">
+
+        <fragment
+            android:id="@+id/mapFragment"
+            android:name="teamg.csse4011.medicaid.MapFragment"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
             android:layout_marginBottom="16dp"
             android:layout_marginEnd="24dp"
             android:layout_marginStart="24dp"
