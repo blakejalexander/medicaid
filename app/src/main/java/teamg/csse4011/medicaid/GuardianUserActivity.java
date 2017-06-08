@@ -40,7 +40,7 @@ import java.util.Random;
 
 public class GuardianUserActivity extends AppCompatActivity {
     /* Default connection details */
-    public String currIpAddr = "10.89.185.225";
+    public String currIpAddr = "10.89.141.71";
     public int currPort = 8080;
 
     private static final int    NUMBER_BEACONS = 4;
@@ -65,6 +65,9 @@ public class GuardianUserActivity extends AppCompatActivity {
         textViewConnectFlag = (TextView) findViewById(R.id.textViewConnectFlag);
         statusTextView = (TextView) findViewById(R.id.statusTextView);
         textViewLastUpdated = (TextView) findViewById(R.id.lastUpdatedTextView);
+
+        editTextAddress.setText(currIpAddr);
+        editTextPort.setText(String.valueOf(currPort));
 
         // Get the Intent that started this activity and extract the string
         Intent intent = getIntent();
@@ -253,8 +256,8 @@ public class GuardianUserActivity extends AppCompatActivity {
         NotificationCompat.Builder mBuilder =
                 new NotificationCompat.Builder(this)
                         .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                        .setContentTitle("My notification")
-                        .setContentText("Hello World!");
+                        .setContentTitle("MEDICAID")
+                        .setContentText("Someone needs help!");
 
 // Creates an explicit intent for an Activity in your app
         Intent resultIntent = new Intent(this, GuardianUserActivity.class);
@@ -327,14 +330,14 @@ public class GuardianUserActivity extends AppCompatActivity {
         /*
          * Handle logic for non-normal statuses.
          */
-        if (status == "NEEDS HELP") {
+        if (status.equals("NEEDS HELP")) {
             tellPeople();
-            statusTextView.setTextColor(Color.parseColor("#ff0000"));
+            statusTextView.setTextColor(Color.argb(255, 255, 0, 0));
             pollInterval = 2000;
-        } else if (status == "PENDING") {
-            statusTextView.setTextColor(Color.parseColor("#ffff00"));
+        } else if (status.equals("PENDING")) {
+            statusTextView.setTextColor(Color.argb(255, 255, 255, 0));
             pollInterval = 2500;
-        } else if (status == "OKAY") {
+        } else if (status.equals("OKAY")) {
             statusTextView.setTextColor(Color.parseColor("#118800"));
             pollInterval = 5000;
         }

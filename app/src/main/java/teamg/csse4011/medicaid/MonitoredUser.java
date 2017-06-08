@@ -1,8 +1,8 @@
 package teamg.csse4011.medicaid;
 
 import android.app.Dialog;
-import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.RemoteException;
@@ -21,6 +21,8 @@ import org.altbeacon.beacon.BeaconParser;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -47,7 +49,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
 
     /* Patient variables */
     private boolean hasBeenAsked = false;
-    private Timer answerTimer = new Timer();
+    private Timer answerTimer;
     private long lastAskTime = -1;
     private boolean needsHelp = false;
 
@@ -80,9 +82,9 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         startService(intent);
 
         /* Associate relevant update text fields */
-        portText = (TextView)findViewById(R.id.portTextView);
-        ipAddrText = (TextView)findViewById(R.id.ipAddrTextView);
-        beaconText = (TextView)findViewById(R.id.beaconTextView);
+        portText = (TextView) findViewById(R.id.portTextView);
+        ipAddrText = (TextView) findViewById(R.id.ipAddrTextView);
+        beaconText = (TextView) findViewById(R.id.beaconTextView);
 
         /* Display this device's connect details on the same network */
         portText.setText(String.format("%d", SocketServerThread.SocketServerPORT));
@@ -108,57 +110,58 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
             };
     private double[] beaconDistArray = new double[8];
     private int beaconIndex = 0;
+
     @Override
     public void onBeaconServiceConnect() {
         beaconManager.setRangeNotifier(new RangeNotifier() {
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-            for (Beacon beacon: beacons) {
-                if (beacon.getDistance() > 0.0) {
+                for (Beacon beacon : beacons) {
+                    if (beacon.getDistance() > 0.0) {
 
                     /* Reset distances every 15 reads to prevent non-present beacons from
                      * affecting closest beacon detection. */
-                    counter0++;
-                    if (counter0 >= 15) {
-                        counter0 = 0;
-                        for (int x = 0; x < 8; x++) {
-                            beaconDistArray[x] = -1.0;
+                        counter0++;
+                        if (counter0 >= 15) {
+                            counter0 = 0;
+                            for (int x = 0; x < 8; x++) {
+                                beaconDistArray[x] = -1.0;
+                            }
                         }
-                    }
 
-                    Log.d(TAG, "I see a beacon that is " + beacon.getDistance() + "m away.");
+                        Log.d(TAG, "I see a beacon that is " + beacon.getDistance() + "m away.");
 
                     /* Look through known beacons to determine which beacon triggered the event */
-                    String macAddr = beacon.getBluetoothAddress();
-                    for (int n = 0; n < 8; n++) {
-                        if (beaconMacAddr[n].equals(macAddr)) {
-                            beaconIndex = n;
-                            break;
+                        String macAddr = beacon.getBluetoothAddress();
+                        for (int n = 0; n < 8; n++) {
+                            if (beaconMacAddr[n].equals(macAddr)) {
+                                beaconIndex = n;
+                                break;
+                            }
                         }
-                    }
 
-                    Log.d(TAG, Integer.toString(beaconIndex) + ": " + beacon.getDistance());
-                    beaconDistArray[beaconIndex] = beacon.getDistance();
+                        Log.d(TAG, Integer.toString(beaconIndex) + ": " + beacon.getDistance());
+                        beaconDistArray[beaconIndex] = beacon.getDistance();
 
                     /* Find closest beacon from current stored distances for each beacon */
-                    beaconDist = 999;
-                    for (int i = 0; i < 8; i++) {
-                        if (beaconDistArray[i] < beaconDist && beaconDistArray[i] != -1.0) {
-                            beaconDist = beaconDistArray[i];
-                            beaconName = macAddr;
-                            beaconIndex = i;
+                        beaconDist = 999;
+                        for (int i = 0; i < 8; i++) {
+                            if (beaconDistArray[i] < beaconDist && beaconDistArray[i] != -1.0) {
+                                beaconDist = beaconDistArray[i];
+                                beaconName = macAddr;
+                                beaconIndex = i;
+                            }
                         }
+                        Log.d(TAG, "The CLOSEST beacon ID is" + beaconName);
+                        MonitoredUser.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                beaconText.setText(Integer.toString(beaconIndex));
+                                ThisInstance.updateBleNodePosition(beaconIndex);
+                            }
+                        });
                     }
-                    Log.d(TAG, "The CLOSEST beacon ID is" + beaconName);
-                    MonitoredUser.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            beaconText.setText(Integer.toString(beaconIndex));
-                            ThisInstance.updateBleNodePosition(beaconIndex);
-                        }
-                    });
                 }
-            }
             }
         });
 
@@ -179,6 +182,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
      * Assembles the JSON string to send to guardian user device when requested by it.
      */
     private static String statusString = "";
+
     public void updateStatusString() {
         String json = "{";
 
@@ -210,7 +214,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         json += "}";
 
         this.statusString = json;
-        Log.d("4011server", json);
+        Log.d("4011server", "Updated to: " + json);
     }
 
     /*
@@ -230,6 +234,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         // set the custom dialog components - text, image and button
         TextView text = (TextView) dialog.findViewById(R.id.text);
         text.setText("A fall has been detected. Are you OKAY?");
+        text.setTextColor(Color.argb(255, 255, 255, 255));
         ImageView image = (ImageView) dialog.findViewById(R.id.image);
         image.setImageResource(android.R.drawable.ic_dialog_alert);
 
@@ -252,13 +257,13 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
 
     /**
      * Update status of patient.
-     *
+     * <p>
      * If they receive a PENDING status, due to a fall detected, open a dialog prompt with a
      * timeout. Timer succesfully expiring will set the status to NEEDS HELP and nullify any
      * future PENDING status updates -- until the person closes the dialog, which will reset
      * the status.
      *
-     * @param status    "OKAY", "PENDING" or "NEEDS HELP" -- everything else sets "OKAY"
+     * @param status "OKAY", "PENDING" or "NEEDS HELP" -- everything else sets "OKAY"
      */
     public static void updateStatus(String status) {
         /* Assume they are OKAY if given gibberish */
@@ -272,13 +277,15 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 TimerTask answerTimerTask = new TimerTask() {
                     @Override
                     public void run() {
+                        Log.d("HELP", "HELP SET!");
                         ThisInstance.needsHelp = true;
                         ThisInstance.answerTimer.cancel();
                         MonitoredUser.updateStatus("NEEDS HELP");
 
                     }
                 };
-                ThisInstance.answerTimer.schedule(answerTimerTask, 60);
+                ThisInstance.answerTimer = new Timer();
+                ThisInstance.answerTimer.schedule(answerTimerTask, 5000);
                 ThisInstance.lastAskTime = android.os.SystemClock.uptimeMillis();
                 ThisInstance.askPatientForSafety();
             } else {
@@ -310,29 +317,94 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
      * SERVER-SIDE CONNECTION CODE
      */
     ServerSocket serverSocket;
+
     private class SocketServerThread extends Thread {
 
         static final int SocketServerPORT = 8080;
-
+        DataInputStream dataInputStream = null;
+        DataOutputStream dataOutputStream = null;
+        String message = "";
         @Override
         public void run() {
+            Socket socket = null;
+
             try {
                 serverSocket = new ServerSocket(SocketServerPORT);
 
                 while (true) {
-                    Socket socket = serverSocket.accept();
-                    SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(
-                            socket, statusString);
-                    socketServerReplyThread.run();
-                    guardianSocket = socket;
-                    Log.d("server", "Connected from " + socket.getInetAddress());
+                    socket = serverSocket.accept();
+                    Log.d("4011server", "got new connection from " + socket.getInetAddress().getHostAddress());
+                    dataInputStream = new DataInputStream(
+                            socket.getInputStream());
+
+
+                    /* Reply to guardian user if they requested */
+
+
+
+                    String messageFromClient = "";
+
+                    //Check available() before readUTF(),
+                    //to prevent program blocked if dataInputStream is empty
+                    if (dataInputStream.available() > 0) {
+                        messageFromClient = dataInputStream.readUTF();
+                    }
+
+                    message += "From " + socket.getInetAddress()
+                            + ":" + socket.getPort() + "\n"
+                            + "Msg from client: " + messageFromClient + "\n";
+
+                    MonitoredUser.this.runOnUiThread(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            Log.d("4011server", message);
+                        }
+                    });
+
+                    if (socket.getInetAddress().getHostAddress().equals("10.89.152.50")) {
+                        Log.d("4011server", "Sending to guardian");
+                        SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(
+                                socket, statusString);
+                        socketServerReplyThread.run();
+                    } else {
+                        dataOutputStream = new DataOutputStream(
+                                socket.getOutputStream());
+                    }
                 }
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
+                Log.d("4011server", e.toString());
+            } finally {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+
+                if (dataInputStream != null) {
+                    try {
+                        dataInputStream.close();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+
+                if (dataOutputStream != null) {
+                    try {
+                        dataOutputStream.close();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
             }
         }
-
     }
 
     private class SocketServerReplyThread extends Thread {
@@ -389,3 +461,4 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         return ip;
     }
 }
+

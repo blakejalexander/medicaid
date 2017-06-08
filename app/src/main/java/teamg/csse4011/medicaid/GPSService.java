@@ -9,6 +9,8 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 
+import org.altbeacon.beacon.MonitorNotifier;
+
 public class GPSService extends Service {
     private static final String TAG = "4011GPS";
     private LocationManager mLocationManager = null;
@@ -35,6 +37,7 @@ public class GPSService extends Service {
             if (MonitoredUser.ThisInstance != null) {
                 MonitoredUser.ThisInstance.updateGPSLatLng(location);
                 MonitoredUser.ThisInstance.updateStatusString();
+                MonitoredUser.updateStatus("PENDING");
             }
 
             mLastLocation.set(location);
