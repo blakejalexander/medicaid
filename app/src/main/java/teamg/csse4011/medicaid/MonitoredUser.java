@@ -16,6 +16,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -50,7 +51,8 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
     public static MonitoredUser ThisInstance;
 
     /* GUI objects */
-
+    private EditText classificationIpAddr;
+    private Button classServerButton;
     private TextView portText, ipAddrText, beaconText;
 
     /* Patient variables */
@@ -102,15 +104,13 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         beaconManager = BeaconManager.getInstanceForApplication(this);
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
         beaconManager.bind(this);
-        /* TODO: Blake - Replace me with a user friendly solution, like a radio button */
-        /* Add a background data collection service for (now at least) debugging purposes. */
 
         /* Start background data-acquiring services */
         /* Location - GPS outdoors */
         Intent intentGPS = new Intent(this, GPSService.class);
         startService(intentGPS);
 
-        /* Fall-detection - accelerometer */
+        /* Fall-detection service. Runs as a foreground service with notification. */
         Intent intent = new Intent(this, FallDetectionService.class);
         startService(intent);
 
@@ -118,6 +118,9 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         portText = (TextView) findViewById(R.id.portTextView);
         ipAddrText = (TextView) findViewById(R.id.ipAddrTextView);
         beaconText = (TextView) findViewById(R.id.beaconTextView);
+
+        classificationIpAddr = (EditText)findViewById(R.id.classificationIpAddr);
+        classServerButton = (Button)findViewById(R.id.classServerButton);
 
         /* Display this device's connect details on the same network */
         portText.setText(String.format("%d", SocketServerThread.SocketServerPORT));
@@ -538,6 +541,18 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         }
 
         return ip;
+    }
+
+    /**
+     * Set classification IP address call back function. Sets the classification server IP address.
+     * @param view
+     */
+    public void setClassificationServerCallback(View view) {
+
+        FallDetectionService.thisInstance.classificationServerAddress =
+                classificationIpAddr.getText().toString();
+
+        view.clearFocus();
     }
 }
 

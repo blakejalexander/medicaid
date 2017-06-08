@@ -32,6 +32,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ConnectException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -44,10 +45,12 @@ import teamg.csse4011.medicaid.R;
 public class FallDetectionService extends Service implements SensorEventListener {
     /* TODO: Blake - look into IntentService instead? Is it OK if it runs on the main thread? */
 
+    public static FallDetectionService thisInstance;
+
     private final String TAG = FallDetectionService.class.getSimpleName();
 
-    private final String classificationServerAddress = "10.89.233.128";
-    private final int classificationSeverPort = 4011;
+    public String classificationServerAddress = "10.89.233.128";
+    public int classificationSeverPort = 4011;
 
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -77,6 +80,9 @@ public class FallDetectionService extends Service implements SensorEventListener
     @Override
     public void onCreate() {
         super.onCreate();
+
+        /* I feel dirty doing this... */
+        thisInstance = this;
 
         Log.d("sensor", "onCreate called");
 
@@ -326,8 +332,10 @@ public class FallDetectionService extends Service implements SensorEventListener
         try {
 
 
-            socket = new Socket(classificationServerAddress, classificationSeverPort);
-            socket.setSoTimeout(2000); /* Over generous 2 second timeout. */
+            socket = new Socket();
+//            socket.setSoTimeout(2000); /* Over generous 2 second timeout. */
+            socket.connect(new InetSocketAddress(classificationServerAddress,
+                    classificationSeverPort), 2000);
 
             /* Output stream, to send response. */
             OutputStream outSockStream = socket.getOutputStream();
