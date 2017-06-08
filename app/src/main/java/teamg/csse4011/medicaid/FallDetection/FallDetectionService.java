@@ -326,8 +326,10 @@ public class FallDetectionService extends Service implements SensorEventListener
         try {
 
 
-            socket = new Socket(classificationServerAddress, classificationSeverPort);
-            socket.setSoTimeout(2000); /* Over generous 2 second timeout. */
+            socket = new Socket();
+//            socket.setSoTimeout(2000); /* Over generous 2 second timeout. */
+            socket.connect(new InetSocketAddress(classificationServerAddress,
+                    classificationSeverPort), 2000);
 
             /* Output stream, to send response. */
             OutputStream outSockStream = socket.getOutputStream();
