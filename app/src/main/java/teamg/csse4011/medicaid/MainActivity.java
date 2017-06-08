@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -22,10 +23,16 @@ import java.io.PrintWriter;
 import teamg.csse4011.medicaid.FallDetection.FallLikeEventDetector;
 
 public class MainActivity extends AppCompatActivity {
+
+    private final String TAG = "MainActivity";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        /* If the required folders don't exist, create them. */
+        createDataModelFolders();
 
         Context context = getApplicationContext();
         CharSequence text = "Please enable Location sharing and Bluetooth if not already!";
@@ -87,9 +94,8 @@ public class MainActivity extends AppCompatActivity {
                     /* for each file */
                     FallLikeEventDetector.FallLikeEventFeatures features = null;
 
-                    BufferedReader br = null;
                     FileReader fr = new FileReader(wind);
-                    br = new BufferedReader(fr);
+                    BufferedReader br = new BufferedReader(fr);
 
                     /* for each line */
                     String line = null;
@@ -109,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
                             PrintWriter pw = new PrintWriter(out, true);
 
                             pw.println(features.impactDuration + "," + features.impactViolence +
-                                            "," + features.impactAverage +
+                                            "," + features.impactAverage + "," +
                                     features.postImpactAverage);
 
                             pw.close();
@@ -134,10 +140,53 @@ public class MainActivity extends AppCompatActivity {
 
                     /* TODO: FIXME: Blake - handle better, but its debug code so don't care. */
                 } catch (FileNotFoundException e) {
+                    e.printStackTrace();
                 } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
 
     }
+
+    /**
+     *  Create CSSE4011_DATA and CSSE4011_MODEL folders if they do not already exist.
+     */
+    private void createDataModelFolders() {
+
+        File dataFolder = new File(Environment.getExternalStorageDirectory() + "/CSSE4011_DATA");
+        File modelFolder = new File(Environment.getExternalStorageDirectory() + "/CSSE4011_MODEL");
+
+        boolean dataSuccess = true;
+        boolean modelSuccess = true;
+        if (!dataFolder.exists()) {
+            try {
+                dataSuccess = dataFolder.mkdirs();
+            } catch (SecurityException e) {
+                dataSuccess = false;
+            }
+        }
+
+        if (!modelFolder.exists()) {
+            try{
+                modelSuccess = modelFolder.mkdirs();
+            } catch (SecurityException e) {
+                modelSuccess = false;
+            }
+        }
+
+        if (dataSuccess) {
+            Log.d(TAG, "Successfully created CSSE4011_DATA folder");
+        } else {
+            Log.d(TAG, "Failed to create CSSE4011_DATA Folder, undefined behaviour to follow :(");
+        }
+
+        if (modelSuccess) {
+            Log.d(TAG, "Successfully created CSSE4011_MODEL folder");
+        } else {
+            Log.d(TAG, "Failed to create CSSE4011_MODEL Folder, undefined behaviour to follow :(");
+        }
+
+    }
+
 }

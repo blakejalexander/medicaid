@@ -249,9 +249,10 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 needsHelp = false;
                 hasBeenAsked = false;
                 MonitoredUser.updateStatus("OKAY");
+                Log.d("4011help", "I DUN NEED HELP SIR!");
             }
         });
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+//        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
         dialog.show();
     }
 
@@ -267,6 +268,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
      */
     public static void updateStatus(String status) {
         /* Assume they are OKAY if given gibberish */
+        Log.d("4011help", "received status " + status);
         if (status != "OKAY" && status != "PENDING" && status != "NEEDS HELP") {
             patientStatus = "OKAY";
         } else if (status == "PENDING" && ThisInstance.needsHelp == false) {
@@ -277,7 +279,8 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 TimerTask answerTimerTask = new TimerTask() {
                     @Override
                     public void run() {
-                        Log.d("HELP", "HELP SET!");
+                        Log.d("4011help", "I NEED HELP SIR!");
+
                         ThisInstance.needsHelp = true;
                         ThisInstance.answerTimer.cancel();
                         MonitoredUser.updateStatus("NEEDS HELP");
@@ -294,9 +297,11 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
 
         } else if (status == "NEEDS HELP") {
             patientStatus = status;
+            Log.d("4011help", "set status to " + status);
         } else {
             patientStatus = "OKAY";
         }
+        MonitoredUser.ThisInstance.updateStatusString();
     }
 
     /* We only need latitude and longitude from this */
@@ -371,6 +376,14 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                         dataOutputStream = new DataOutputStream(
                                 socket.getOutputStream());
                     }
+//=======
+//                    Socket socket = serverSocket.accept();
+//                    SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(
+//                            socket, statusString);
+//                    socketServerReplyThread.run();
+//                    guardianSocket = socket;
+//                    Log.d("4011help", "Connected from " + socket.getInetAddress() + " sent " + statusString);
+//
                 }
             } catch (IOException e) {
                 // TODO Auto-generated catch block
