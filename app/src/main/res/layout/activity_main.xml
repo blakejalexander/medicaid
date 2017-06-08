@@ -99,15 +99,5 @@
         tools:layout_constraintRight_creator="1"
         tools:layout_constraintTop_creator="1"/>
 
-    <Button
-        android:id="@+id/button4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:onClick="debugButtonCallback"
-        android:text="DEBUG"
-        tools:layout_editor_absoluteX="16dp"
-        tools:layout_editor_absoluteY="525dp"/>
-
-
 
 </android.support.constraint.ConstraintLayout>
