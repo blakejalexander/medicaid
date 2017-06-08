@@ -1,5 +1,6 @@
 # medicaid
-[CSSE4011 2017](https://www.uq.edu.au/study/course.html?course_code=CSSE4011) Project
+A [CSSE4011 2017](https://www.uq.edu.au/study/course.html?course_code=CSSE4011) project.
+
 An Android based fall detection and medical alert system. This is a end-of-semester project
 and the result of 3-4 weeks of scoping, research and implementation which was presented
 at the conclusion of the semester.
