@@ -37,6 +37,7 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import teamg.csse4011.medicaid.MainActivity;
+import teamg.csse4011.medicaid.MonitoredUser;
 import teamg.csse4011.medicaid.R;
 
 
@@ -106,6 +107,12 @@ public class FallDetectionService extends Service implements SensorEventListener
 
         /* TODO: Blake - we should check the return value for success. */
         this.sensorManager.registerListener(this, this.accelerometer, SensorManager.SENSOR_DELAY_FASTEST, this.sensorHandler);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "HEEEEEREE");
     }
 
     /**
@@ -238,12 +245,27 @@ public class FallDetectionService extends Service implements SensorEventListener
 
                         switch (classification) {
                             case CLASSIFICATION_FALL:
+                                Log.d(TAG, "CLASSIFICATION_FALL");
+
+                                MonitoredUser.ThisInstance.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (MonitoredUser.ThisInstance != null) {
+                                            MonitoredUser.ThisInstance.updateStatus("PENDING");
+                                        }
+                                    }
+                                });
+
+
                                 break;
                             case CLASSIFICATION_JUMPING:
+                                Log.d(TAG, "CLASSIFICATION_JUMPING");
                                 break;
                             case CLASSIFICATION_WALKING:
+                                Log.d(TAG, "CLASSIFICATION_WALKING");
                                 break;
                             case CLASSIFICATION_BUMP:
+                                Log.d(TAG, "CLASSIFICATION_BUMP");
                                 break;
                             default:
                                 break;

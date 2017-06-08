@@ -244,9 +244,10 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 needsHelp = false;
                 hasBeenAsked = false;
                 MonitoredUser.updateStatus("OKAY");
+                Log.d("4011help", "I DUN NEED HELP SIR!");
             }
         });
-        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+//        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
         dialog.show();
     }
 
@@ -262,6 +263,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
      */
     public static void updateStatus(String status) {
         /* Assume they are OKAY if given gibberish */
+        Log.d("4011help", "received status " + status);
         if (status != "OKAY" && status != "PENDING" && status != "NEEDS HELP") {
             patientStatus = "OKAY";
         } else if (status == "PENDING" && ThisInstance.needsHelp == false) {
@@ -272,13 +274,15 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 TimerTask answerTimerTask = new TimerTask() {
                     @Override
                     public void run() {
+                        Log.d("4011help", "I NEED HELP SIR!");
                         ThisInstance.needsHelp = true;
                         ThisInstance.answerTimer.cancel();
                         MonitoredUser.updateStatus("NEEDS HELP");
 
                     }
                 };
-                ThisInstance.answerTimer.schedule(answerTimerTask, 60);
+                ThisInstance.answerTimer = new Timer();
+                ThisInstance.answerTimer.schedule(answerTimerTask, 5000);
                 ThisInstance.lastAskTime = android.os.SystemClock.uptimeMillis();
                 ThisInstance.askPatientForSafety();
             } else {
@@ -287,9 +291,11 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
 
         } else if (status == "NEEDS HELP") {
             patientStatus = status;
+            Log.d("4011help", "set status to " + status);
         } else {
             patientStatus = "OKAY";
         }
+        MonitoredUser.ThisInstance.updateStatusString();
     }
 
     /* We only need latitude and longitude from this */
@@ -325,7 +331,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                             socket, statusString);
                     socketServerReplyThread.run();
                     guardianSocket = socket;
-                    Log.d("server", "Connected from " + socket.getInetAddress());
+                    Log.d("4011help", "Connected from " + socket.getInetAddress() + " sent " + statusString);
                 }
             } catch (IOException e) {
                 // TODO Auto-generated catch block
