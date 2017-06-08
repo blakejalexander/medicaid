@@ -122,6 +122,9 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         classificationIpAddr = (EditText)findViewById(R.id.classificationIpAddr);
         classServerButton = (Button)findViewById(R.id.classServerButton);
 
+        /* Set the starting text to the default classification server. */
+        classificationIpAddr.setText("10.89.233.128");
+
         /* Display this device's connect details on the same network */
         portText.setText(String.format("%d", SocketServerThread.SocketServerPORT));
         ipAddrText.setText(getIpAddress());
