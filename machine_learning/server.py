@@ -36,6 +36,18 @@ SERVER_PORT = 4011
 
 server_done = False
 
+def class_to_label(label):
+    if label == 0:
+        return "Fall"
+    elif label == 1:
+        return "Jump"
+    elif label == 2:
+        return "Walking"
+    elif label == 3:
+        return "Bump"
+    else:
+        return "NAME_ME"
+
 """ Loads the stored TensorFlow model. Note this is an incredibly ugly hack.
     contrib.learn.DNNClassifier no longer has explicit save/restore functions
     like the older predecessors. Theres also a bug (according to github) where
@@ -118,6 +130,8 @@ def _server_thread():
     print("Loading TensorFlow DNNClassifier model from saved checkpoint...")
     classifier = load_tensorflow_model()
 
+    print("Ready to go!")
+
     while True:
 
         client_sock, address = server_sock.accept()
@@ -159,7 +173,8 @@ def _server_thread():
 
         # Send the result to the client
         client_sock.send(b'%d\n' % classification)
-        print("classification: %d" % classification)
+        print("classification: %d = %s" % \
+            (classification, class_to_label(classification)))
 
         # Close the connection
         client_sock.close()
