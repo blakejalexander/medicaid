@@ -1,10 +1,15 @@
 package teamg.csse4011.medicaid;
 
 import android.app.Dialog;
+import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -13,6 +18,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
@@ -58,6 +64,34 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
     private String beaconName = "";
     private BeaconManager beaconManager;
 
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+
+            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
+                        BluetoothAdapter.ERROR);
+                switch (state) {
+                    case BluetoothAdapter.STATE_ON:
+                        Log.d("4011help", "turned on");
+                        beaconManager = BeaconManager.getInstanceForApplication(MonitoredUser.ThisInstance);
+                        beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
+                        beaconManager.bind(MonitoredUser.ThisInstance);
+                        break;
+                    case BluetoothAdapter.STATE_OFF:
+                        Log.d("4011help", "turned BLE off");
+                        resetBluetoothDistances();
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        Log.d("4011help", "turning BLE off");
+                        resetBluetoothDistances();
+                        break;
+                }
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,7 +102,6 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         beaconManager = BeaconManager.getInstanceForApplication(this);
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
         beaconManager.bind(this);
-
         /* TODO: Blake - Replace me with a user friendly solution, like a radio button */
         /* Add a background data collection service for (now at least) debugging purposes. */
 
@@ -93,6 +126,11 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         /* Open new socket to allow connection */
         Thread socketServerThread = new Thread(new SocketServerThread());
         socketServerThread.start();
+
+        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        registerReceiver(mReceiver, filter);
+
+        handler.post(runnableCode);
     }
 
     private int counter0 = 0;
@@ -124,9 +162,7 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                         counter0++;
                         if (counter0 >= 15) {
                             counter0 = 0;
-                            for (int x = 0; x < 8; x++) {
-                                beaconDistArray[x] = -1.0;
-                            }
+                            resetBluetoothDistances();
                         }
 
                         Log.d(TAG, "I see a beacon that is " + beacon.getDistance() + "m away.");
@@ -194,7 +230,11 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         /* Determine whether to use GPS or not based on whether all stored distances are -1 or not */
         patientGPSFlag = false;
         for (int n = 0; n < 8; n++) {
+            Log.d("4011help", "Val: " + String.valueOf(n) + " : " + String.valueOf(beaconDistArray[n]));
             patientGPSFlag = beaconDistArray[n] == -1.0;
+            if (patientGPSFlag == false) {
+                break;
+            }
         }
 
         /* Using GPS flag */
@@ -317,6 +357,31 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
         BleNearestNodeId = id;
     }
 
+    private void resetBluetoothDistances() {
+        Context context = getApplicationContext();
+        CharSequence text = "Resetting BLE distances!";
+        int duration = Toast.LENGTH_SHORT;
+        Toast toast = Toast.makeText(context, text, duration);
+        toast.show();
+        for (int x = 0; x < 8; x++) {
+            beaconDistArray[x] = -1.0;
+        }
+    }
+
+    // Create the Handler object (on the main thread by default)
+    Handler handler = new Handler();
+
+    // Define the code block to be executed
+    private Runnable runnableCode = new Runnable() {
+        @Override
+        public void run() {
+        resetBluetoothDistances();
+
+        /* Periodically repeat action */
+        handler.postDelayed(runnableCode, 20000);
+        }
+    };
+
     Socket guardianSocket;
     /*
      * SERVER-SIDE CONNECTION CODE
@@ -337,52 +402,53 @@ public class MonitoredUser extends AppCompatActivity implements BeaconConsumer {
                 serverSocket = new ServerSocket(SocketServerPORT);
 
                 while (true) {
-                    socket = serverSocket.accept();
-                    Log.d("4011server", "got new connection from " + socket.getInetAddress().getHostAddress());
-                    dataInputStream = new DataInputStream(
-                            socket.getInputStream());
-
-
-                    /* Reply to guardian user if they requested */
-
-
-
-                    String messageFromClient = "";
-
-                    //Check available() before readUTF(),
-                    //to prevent program blocked if dataInputStream is empty
-                    if (dataInputStream.available() > 0) {
-                        messageFromClient = dataInputStream.readUTF();
-                    }
-
-                    message += "From " + socket.getInetAddress()
-                            + ":" + socket.getPort() + "\n"
-                            + "Msg from client: " + messageFromClient + "\n";
-
-                    MonitoredUser.this.runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            Log.d("4011server", message);
-                        }
-                    });
-
-                    if (socket.getInetAddress().getHostAddress().equals("10.89.152.50")) {
-                        Log.d("4011server", "Sending to guardian");
-                        SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(
-                                socket, statusString);
-                        socketServerReplyThread.run();
-                    } else {
-                        dataOutputStream = new DataOutputStream(
-                                socket.getOutputStream());
-                    }
+//                    socket = serverSocket.accept();
+//                    Log.d("4011server", "got new connection from " + socket.getInetAddress().getHostAddress());
+//                    dataInputStream = new DataInputStream(
+//                            socket.getInputStream());
+//
+//
+//                    /* Reply to guardian user if they requested */
+//
+//
+//
+//                    String messageFromClient = "";
+//
+//                    //Check available() before readUTF(),
+//                    //to prevent program blocked if dataInputStream is empty
+//                    if (dataInputStream.available() > 0) {
+//                        messageFromClient = dataInputStream.readUTF();
+//                    }
+//
+//                    message += "From " + socket.getInetAddress()
+//                            + ":" + socket.getPort() + "\n"
+//                            + "Msg from client: " + messageFromClient + "\n";
+//
+//                    MonitoredUser.this.runOnUiThread(new Runnable() {
+//
+//                        @Override
+//                        public void run() {
+//                            Log.d("4011server", message);
+//                        }
+//                    });
+//
+//                    if (socket.getInetAddress().getHostAddress().equals("172.20.10.7")) {
+//                        Log.d("4011server", "Sending to guardian");
+//                        SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(
+//                                socket, statusString);
+//                        socketServerReplyThread.run();
+//                    } else {
+//                        dataOutputStream = new DataOutputStream(
+//                                socket.getOutputStream());
+//                    }
 //=======
-//                    Socket socket = serverSocket.accept();
-//                    SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(
-//                            socket, statusString);
-//                    socketServerReplyThread.run();
-//                    guardianSocket = socket;
-//                    Log.d("4011help", "Connected from " + socket.getInetAddress() + " sent " + statusString);
+                    socket = serverSocket.accept();
+                    updateStatusString();
+                    SocketServerReplyThread socketServerReplyThread = new SocketServerReplyThread(
+                            socket, statusString);
+                    socketServerReplyThread.run();
+                    guardianSocket = socket;
+                    Log.d("4011help", "Connected from " + socket.getInetAddress() + " sent " + statusString);
 //
                 }
             } catch (IOException e) {

@@ -124,9 +124,11 @@ public class GuardianUserActivity extends AppCompatActivity {
      * Update map to show person at closest node they are at.
      */
     public void updateBleNearestNode(int id) {
+        Log.d("4011json", "1 Updating to node id " + Integer.toString(id));
         if (id < 0 || id > (NUMBER_BEACONS - 1)) {
             return;
         }
+        Log.d("4011json", "2 Updating to node id " + Integer.toString(id));
         updateBleMarkerPosition(this.pair[id].X(), this.pair[id].Y());
     }
 
@@ -243,14 +245,13 @@ public class GuardianUserActivity extends AppCompatActivity {
     private Runnable runnableCode = new Runnable() {
         @Override
         public void run() {
-            // Do something here on the main thread
-            requestData();
+        // Do something here on the main thread
+        requestData();
 
-            /* Periodically repeat action */
-            handler.postDelayed(runnableCode, pollInterval);
+        /* Periodically repeat action */
+        handler.postDelayed(runnableCode, pollInterval);
         }
     };
-
 
     void tellPeople() {
         NotificationCompat.Builder mBuilder =
@@ -319,6 +320,7 @@ public class GuardianUserActivity extends AppCompatActivity {
             Log.d("4011json", "FLAG: " + jsonUsingGPSFlag);
             Log.d("4011json", "Latitude: " + jsonGpsLatitude);
             Log.d("4011json", "Longitude: " + jsonGpsLongitude);
+            Log.d("4011json", "BLE Node: " + jsonBlePos);
         }
 
         if (MapFragment.ThisInstance != null) {

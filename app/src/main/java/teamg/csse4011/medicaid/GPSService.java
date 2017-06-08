@@ -37,7 +37,6 @@ public class GPSService extends Service {
             if (MonitoredUser.ThisInstance != null) {
                 MonitoredUser.ThisInstance.updateGPSLatLng(location);
                 MonitoredUser.ThisInstance.updateStatusString();
-                MonitoredUser.updateStatus("PENDING");
             }
 
             mLastLocation.set(location);
