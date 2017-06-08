@@ -132,6 +132,7 @@ def _server_thread():
             j = json.loads(req.decode())
         except json.decoder.JSONDecodeError:
             print("JSONDecodeError, rejecting connection")
+            print("DEBUG: %s" % str(req))
             client_sock.close()
             continue
 
@@ -158,6 +159,7 @@ def _server_thread():
 
         # Send the result to the client
         client_sock.send(b'%d\n' % classification)
+        print("classification: %d" % classification)
 
         # Close the connection
         client_sock.close()
