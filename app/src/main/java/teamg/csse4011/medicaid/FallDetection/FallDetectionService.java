@@ -21,10 +21,19 @@ import android.hardware.SensorManager;
 
 import android.util.Log;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.ConnectException;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import teamg.csse4011.medicaid.MainActivity;
@@ -35,6 +44,9 @@ public class FallDetectionService extends Service implements SensorEventListener
     /* TODO: Blake - look into IntentService instead? Is it OK if it runs on the main thread? */
 
     private final String TAG = FallDetectionService.class.getSimpleName();
+
+    private final String classificationServerAddress = "10.89.233.128";
+    private final int classificationSeverPort = 4011;
 
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -48,14 +60,18 @@ public class FallDetectionService extends Service implements SensorEventListener
     /* FSM to detect Fall-Like events. ie. Events that look like falls. */
     private FallLikeEventDetector fallLikeFSMDetect;
 
+    /* Constants, output returned by classification server. */
+    private final int CLASSIFICATION_FALL = 0;
+    private final int CLASSIFICATION_WALKING = 1;
+    private final int CLASSIFICATION_JUMPING = 2;
+    private final int CLASSIFICATION_BUMP = 3;
+
     /* DEBUG: Remove these ASAP when done. */
     final String baseDir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
     final String dirname = "CSSE4011_DATA";
     final String filepath = baseDir + File.separator + dirname;
     private File testdata;
 
-    /* TODO: Blake - actually use this.*/
-    private int samplingPeriodUs = (1 / 500) * 10^(-6); /* 500Hz. */
 
     @Override
     public void onCreate() {
@@ -209,7 +225,31 @@ public class FallDetectionService extends Service implements SensorEventListener
                     double G = Math.sqrt(x * x + y * y + z * z);
 
                     /* Clock the detection FSM. */
-                    fallLikeFSMDetect.run(event.timestamp, G);
+                    FallLikeEventDetector.FallLikeEventFeatures features = fallLikeFSMDetect.run
+                            (event.timestamp, G);
+
+                    /* This would be where we run the on-board TensorFlow classifier,
+                     * IF WE HAD ONE */
+                    if (features != null) {
+
+                        /* Instead, we offload the classification to a server, communicating with
+                         * it by sending the features in a JSON struct over TCP. */
+                        int classification = classifyFall(features);
+
+                        switch (classification) {
+                            case CLASSIFICATION_FALL:
+                                break;
+                            case CLASSIFICATION_JUMPING:
+                                break;
+                            case CLASSIFICATION_WALKING:
+                                break;
+                            case CLASSIFICATION_BUMP:
+                                break;
+                            default:
+                                break;
+                        }
+
+                    }
 
                     /* DEBUG: Dump the (raw) reading to flash. */
                     // this.dumpDebugAccData(event.timestamp, x, y, z);
@@ -251,6 +291,72 @@ public class FallDetectionService extends Service implements SensorEventListener
                     });
 
         }
+    }
+
+    private int classifyFall(FallLikeEventDetector.FallLikeEventFeatures features) {
+
+        Socket socket = null;
+        String response = null;
+
+        Integer classification = null;
+
+        /* Attempt to create a socket to communicate with the classification server. */
+        try {
+
+
+            socket = new Socket(classificationServerAddress, classificationSeverPort);
+            socket.setSoTimeout(2000); /* Over generous 2 second timeout. */
+
+            /* Output stream, to send response. */
+            OutputStream outSockStream = socket.getOutputStream();
+            PrintWriter outFile = new PrintWriter(outSockStream);
+
+            /* Input stream to read response */
+            InputStream inSockStream = socket.getInputStream();
+            BufferedReader inFile = new BufferedReader(new InputStreamReader(inSockStream));
+
+
+            /* Construct the JSON to send for classification */
+            String jsonString = null;
+            try {
+                jsonString = new JSONObject()
+                        .put("impact_duration", features.impactDuration)
+                        .put("impact_violence", features.impactViolence)
+                        .put("impact_average", features.impactAverage)
+                        .put("post_impact_average", features.postImpactAverage).toString();
+            } catch (org.json.JSONException e) {
+                e.printStackTrace();
+            }
+
+            if (jsonString == null) {
+                /* Abort, developer error. */
+            }
+
+            /* Send! */
+            outFile.print(jsonString);
+            outFile.flush();
+
+            /* Read! */
+            response = inFile.readLine();
+            classification = Integer.parseInt(response);
+
+            socket.close();
+
+        } catch (SocketTimeoutException e) {
+            Log.d(TAG, "timed out asking server for classification");
+            e.printStackTrace();
+        } catch (ConnectException e) {
+            Log.d(TAG, "connection refused, is the server running?");
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if (classification == null) {
+            return -1;
+        }
+        return (int)classification;
+
     }
 
 }
